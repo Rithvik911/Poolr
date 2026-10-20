@@ -37,3 +37,71 @@
 - Update the Gate 0 S1 checklist.
 - Commit the verified S1 work.
 - Proceed to S2 only after S1 documentation is complete.
+## S2 — 10,000-route geospatial baseline
+
+- Dataset: 10,000 synthetic three-point GeoJSON LineStrings
+- Generator seed: 42
+- Collection: `poolr.s2benchmark`
+- Index: `route_2dsphere`
+- MongoDB: 7.0.45
+- Environment: Local Docker single-node replica set
+- Timing method: Single MongoDB `explain("executionStats")` observation
+
+| Query | Returned | Docs examined | Keys examined | Time |
+|---|---:|---:|---:|---:|
+| `$geoIntersects` polygon | 125 | 164 | 1,290 | 2 ms |
+| `$geoNear` within 3,000 m | 422 | 7,164 | 7,254 | 19 ms |
+
+### Query parameters
+
+- `$geoIntersects` polygon:
+  `[80.24,13.04]` to `[80.26,13.06]`
+- `$geoNear` point: `[80.25,13.05]`
+- `$geoNear` maximum distance: 3,000 meters
+- `$geoNear` uses `spherical: true` and `key: "route"`
+
+### Findings
+
+- The `$geoIntersects` winning plan used the
+  `route_2dsphere` index (`IXSCAN` followed by `FETCH`).
+- `$geoNear` returned 422 routes within the configured distance.
+- Documents examined are execution-work counters, not necessarily
+  distinct documents.
+- The two queries use different selection predicates, so their
+  timings are not a controlled head-to-head performance comparison.
+- Results are synthetic, local, and based on single measurements.
+## S2 — 100,000-route geospatial benchmark
+
+- Dataset: 100,000 synthetic three-point GeoJSON LineStrings
+- Generator seed: 42
+- Collection: `poolr.s2benchmark100k`
+- Index: `route_2dsphere`
+- Query parameters: Same as the 10k baseline
+- Timing method: Single MongoDB `explain("executionStats")` observation
+
+| Query | Returned | Docs examined | Keys examined | Time |
+|---|---:|---:|---:|---:|
+| `$geoIntersects` polygon | 1,270 | 1,652 | 13,175 | 14 ms |
+| `$geoNear` within 3,000 m | 4,390 | 72,562 | 72,922 | 143 ms |
+
+### Comparison with 10k baseline
+
+- Dataset size increased by 10x.
+- `$geoIntersects` document examinations increased
+  from 164 to 1,652 (approximately 10.07x).
+- `$geoNear` document examinations increased
+  from 7,164 to 72,562 (approximately 10.13x).
+- The `$geoIntersects` examined-document count was
+  approximately 1.65% of stored documents at both sizes.
+- `$geoNear` required substantially more index and document
+  examination work than `$geoIntersects` for these particular
+  query shapes and parameters.
+
+### Limitations
+
+- Routes are synthetic three-point LineStrings, not real road routes.
+- The two query operators perform different geographic searches.
+- Timings come from single local execution observations.
+- No warmup, repeated-trial statistics, concurrency, or p95/p99
+  latency measurements were collected.
+- These findings do not establish production scalability.   
