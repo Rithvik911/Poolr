@@ -105,12 +105,13 @@ function findRouteProjections(
       units: "kilometers",
     });
 
+    // Turf.js 7.4 current property names.
     const routePositionKm =
       distanceBeforeSegmentKm +
-      projected.properties.location;
+      projected.properties.totalDistance;
 
     const distanceFromRouteKm =
-      projected.properties.dist;
+      projected.properties.pointDistance;
 
     if (distanceFromRouteKm <= MAX_DISTANCE_KM) {
       projections.push({
