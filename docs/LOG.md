@@ -138,7 +138,7 @@ All 17 automated assertions passed, covering:
 
 ### Key Findings
 
-- Turf's `location` property provides distance along a LineString from its beginning.
+- Turf's `totalDistance` property provides distance along a LineString from its beginning.
 - A single `nearestPointOnLine()` projection may miss later visits on looping routes.
 - Examining each segment separately allows multiple route positions to be considered.
 - Distinct segment projections can represent the same route position and require deduplication.
