@@ -254,4 +254,4 @@ All 17 automated assertions passed, covering:
 
 ### Next
 
-Document the architectural implications in ADR-0003 and review the S3 implementation before merging. (fix: validate S2 candidate search and correct benchmark evidence)
+Document the architectural implications in ADR-0003 and review the S3 implementation before merging.
