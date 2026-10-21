@@ -104,4 +104,54 @@
 - Timings come from single local execution observations.
 - No warmup, repeated-trial statistics, concurrency, or p95/p99
   latency measurements were collected.
-- These findings do not establish production scalability.   
+- These findings do not establish production scalability.
+## S3 — Route Positioning with Turf.js
+
+### Objective
+
+Investigate how to project passenger pickup and drop-off locations onto a driver's route, evaluate their order along the route, and handle overlapping or looping geometries.
+
+### Implementation
+
+- Used Turf.js `nearestPointOnLine()` to calculate geographic proximity and position along a route.
+- Evaluated individual LineString segments to identify multiple possible visits to the same location.
+- Accumulated segment lengths to determine positions along the complete route.
+- Implemented proximity filtering with an experimental 1 km threshold.
+- Added a 100 m minimum journey-length threshold.
+- Deduplicated projections at shared segment boundaries using a 1 mm tolerance.
+- Added input checks and handling for zero-length segments.
+
+### Test Results
+
+All 17 automated assertions passed, covering:
+
+- Forward and reverse travel direction
+- Identical pickup and drop-off
+- Distant passenger rejection
+- Overlapping segments and repeated visits
+- Looping-route ordering
+- Shared-boundary deduplication
+- Zero-length and degenerate segments
+- Invalid coordinates
+- Minimum journey distance
+- Multi-turn routes
+
+### Key Findings
+
+- Turf's `totalDistance` property provides distance along a LineString from its beginning.
+- A single `nearestPointOnLine()` projection may miss later visits on looping routes.
+- Examining each segment separately allows multiple route positions to be considered.
+- Distinct segment projections can represent the same route position and require deduplication.
+- Geometric ordering and proximity checks can reject unsuitable candidates, but do not establish real-world ride feasibility.
+
+### Limitations
+
+- Synthetic geometries do not represent actual road routes.
+- Geographic proximity does not measure driving distance or detour time.
+- The 1 km proximity, 100 m journey, and 1 mm deduplication thresholds are experimental.
+- Large-scale performance and road-network behavior have not been evaluated.
+- Passing 17 targeted tests does not establish production correctness.
+
+### Next
+
+Document the architectural implications in ADR-0003 and review the S3 implementation before merging.
