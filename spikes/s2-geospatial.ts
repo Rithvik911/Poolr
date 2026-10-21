@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import "dotenv/config";
 import mongoose from "mongoose";
+import { circle } from "@turf/turf";
 
 // --------------------------------------------------
 // 1. Types and configuration
@@ -133,15 +134,15 @@ function validateRoutes(routes: Route[]): void {
     for (const [longitude, latitude] of route.coordinates) {
       assert.ok(
         Number.isFinite(longitude) &&
-          longitude >= -180 &&
-          longitude <= 180,
+        longitude >= -180 &&
+        longitude <= 180,
         `${name}: invalid longitude`
       );
 
       assert.ok(
         Number.isFinite(latitude) &&
-          latitude >= -90 &&
-          latitude <= 90,
+        latitude >= -90 &&
+        latitude <= 90,
         `${name}: invalid latitude`
       );
     }
@@ -356,6 +357,76 @@ async function benchmarkGeoIntersects(
 // 9. $geoNear benchmark
 // --------------------------------------------------
 
+async function benchmarkTwoCircleIntersects(
+  collection: mongoose.mongo.Collection<Route>
+): Promise<void> {
+  // Use an existing seeded route to ensure the query
+  // has at least one matching candidate.
+  const seededRoute = await collection.findOne({
+    name: "Route 1",
+  });
+  assert.ok(seededRoute, "No seeded routes found");
+
+  const coordinates = seededRoute.route.coordinates;
+
+  assert.ok(
+    coordinates.length >= 2,
+    "Seeded route must contain at least two coordinates"
+  );
+
+  const pickup = coordinates[0];
+  const dropoff = coordinates[coordinates.length - 1];
+
+  // Experimental 1 km radius, inflated by 1%.
+  const createCircle = (location: Coordinate) =>
+    circle(location, 1 * 1.01, {
+      steps: 64,
+      units: "kilometers",
+    }).geometry;
+
+  const filter = {
+    $and: [
+      {
+        route: {
+          $geoIntersects: {
+            $geometry: createCircle(pickup),
+          },
+        },
+      },
+      {
+        route: {
+          $geoIntersects: {
+            $geometry: createCircle(dropoff),
+          },
+        },
+      },
+    ],
+  };
+
+  const explain = await collection
+    .find(filter)
+    .explain("executionStats");
+
+  const stats = explain.executionStats;
+
+  assert.ok(
+    stats,
+    "Missing two-circle execution statistics"
+  );
+
+  console.log("\nTwo-circle candidate query:");
+  console.log("Pickup:", pickup);
+  console.log("Drop-off:", dropoff);
+
+  printExecutionStats("$geoIntersects two-circle:", {
+    nReturned: stats.nReturned,
+    totalDocsExamined: stats.totalDocsExamined,
+    totalKeysExamined: stats.totalKeysExamined,
+    executionTimeMillis: stats.executionTimeMillis,
+  });
+}
+
+
 async function benchmarkGeoNear(
   collection: mongoose.mongo.Collection<Route>
 ): Promise<void> {
@@ -426,6 +497,7 @@ async function runGeospatialBenchmarks(): Promise<void> {
   console.log("Seed:", SEED);
 
   await benchmarkGeoIntersects(collection);
+  await benchmarkTwoCircleIntersects(collection);
   await benchmarkGeoNear(collection);
 
   console.log("\nBenchmark execution: completed");
@@ -454,9 +526,20 @@ async function main(): Promise<void> {
     "MONGO_URI is required for database operations"
   );
 
+
   await mongoose.connect(process.env.MONGO_URI);
 
   try {
+    const admin = mongoose.connection.db!.admin();
+
+    const serverInfo = await admin.serverInfo();
+    const hello = await admin.command({ hello: 1 });
+
+    console.log("MongoDB server version:", serverInfo.version);
+    console.log("MongoDB replica set:", hello.setName ?? "none");
+    console.log("MongoDB primary:", hello.isWritablePrimary);
+    console.log("MongoDB server process ID:", hello.topologyVersion?.processId);
+
     if (shouldInsert) {
       await insertBenchmarkRoutes();
     } else {
@@ -466,7 +549,6 @@ async function main(): Promise<void> {
     await mongoose.disconnect();
   }
 }
-
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;

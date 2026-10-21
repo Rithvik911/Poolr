@@ -70,41 +70,141 @@
 - The two queries use different selection predicates, so their
   timings are not a controlled head-to-head performance comparison.
 - Results are synthetic, local, and based on single measurements.
-## S2 — 100,000-route geospatial benchmark
+## S2 — MongoDB Geospatial Route Search
 
-- Dataset: 100,000 synthetic three-point GeoJSON LineStrings
-- Generator seed: 42
-- Collection: `poolr.s2benchmark100k`
-- Index: `route_2dsphere`
-- Query parameters: Same as the 10k baseline
-- Timing method: Single MongoDB `explain("executionStats")` observation
+### Objective
 
-| Query | Returned | Docs examined | Keys examined | Time |
-|---|---:|---:|---:|---:|
-| `$geoIntersects` polygon | 1,270 | 1,652 | 13,175 | 14 ms |
-| `$geoNear` within 3,000 m | 4,390 | 72,562 | 72,922 | 143 ms |
+Investigate MongoDB's `2dsphere` index for discovering driver routes geographically relevant to a passenger's pickup and drop-off locations.
 
-### Comparison with 10k baseline
+Evaluate the planned two-circle candidate query, inspect its execution plan, and determine how `$geoNear` measures distance to a LineString.
 
-- Dataset size increased by 10x.
-- `$geoIntersects` document examinations increased
-  from 164 to 1,652 (approximately 10.07x).
-- `$geoNear` document examinations increased
-  from 7,164 to 72,562 (approximately 10.13x).
-- The `$geoIntersects` examined-document count was
-  approximately 1.65% of stored documents at both sizes.
-- `$geoNear` required substantially more index and document
-  examination work than `$geoIntersects` for these particular
-  query shapes and parameters.
+### Environment
+
+- MongoDB: `7.0.45`
+- Replica set: `rs0`, single-node writable primary
+- Environment: Local Docker container
+- Database: `poolr`
+- Collections: `s2benchmark`, `s2benchmark100k`
+- Geospatial index: `route_2dsphere`
+- Generator seed: `42`
+- Datasets: 10,000 and 100,000 synthetic three-point LineStrings
+
+The MongoDB server identity was confirmed using `serverInfo()` and `hello` from the S2 script.
+
+### Original Single-Polygon Experiment
+
+The original `$geoIntersects` query used a rectangular polygon covering approximately `[80.24, 13.04]` to `[80.26, 13.06]`.
+
+The `$geoNear` query used `[80.25, 13.05]`, a 3,000-meter maximum distance, `spherical: true`, and `key: "route"`.
+
+| Query | Dataset | Returned | Docs examined | Keys examined | Examined / returned |
+|---|---:|---:|---:|---:|---:|
+| `$geoIntersects` | 10k | 125 | 164 | 1,290 | 1.31× |
+| `$geoIntersects` | 100k | 1,270 | 1,652 | 13,175 | 1.30× |
+| `$geoNear` | 10k | 422 | 7,164 | 7,254 | 16.98× |
+| `$geoNear` | 100k | 4,390 | 72,562 | 72,922 | 16.53× |
+
+#### Findings
+
+- The tested `$geoIntersects` query examined approximately 1.3 documents per returned route at both dataset sizes.
+- The tested `$geoNear` query examined approximately 71.64% of the 10k collection and 72.56% of the 100k collection.
+- Documents examined increased with dataset size partly because more routes matched the same geographic query area.
+- The operators used different geographic predicates and returned different result sets. Their execution costs are not a controlled head-to-head comparison.
+- The original single-polygon experiment alone did not validate the planned pickup-and-drop-off candidate search.
+
+### Two-Circle Candidate Query
+
+The planned candidate-search query combines two `$geoIntersects` predicates with `$and`.
+
+A route must intersect both a pickup circle and a drop-off circle.
+
+Both circles are generated with Turf.js `circle()` using 64 steps, an experimental 1 km radius, and 1% radius inflation.
+
+The same query coordinates were used across both datasets:
+
+- Pickup: `[80.175704, 12.926438]`
+- Drop-off: `[80.173821, 12.896366]`
+
+| Metric | 10k routes | 100k routes |
+|---|---:|---:|
+| Routes returned | 2 | 27 |
+| Documents examined | 52 | 485 |
+| Index keys examined | 351 | 3,472 |
+| Documents examined / returned | 26.00× | 17.96× |
+| Documents examined / dataset size | 0.52% | 0.485% |
+
+#### Findings
+
+- The two-circle query returned candidates on both datasets.
+- On the 100k dataset, MongoDB examined 485 documents to return 27 routes.
+- The 100k winning plan contained `FETCH → IXSCAN`, using `route_2dsphere`.
+- Both geographic predicates were present in the `FETCH` filter.
+- The observed plan showed one index scan, not two separate scans joined together.
+- These results support selective index-assisted candidate retrieval for this synthetic workload.
+
+### `$geoNear` LineString Distance Experiment
+
+A temporary collection containing three synthetic LineStrings was used to test geographic distance semantics.
+
+The passenger point was placed near the midpoint of one route rather than near either endpoint.
+
+| Route | Reported distance |
+|---|---:|
+| Near-middle | 111.30 m |
+| Far-north | 5,454.64 m |
+| Far-south | 5,677.24 m |
+
+The near-middle distance was much smaller than the distance to either endpoint.
+
+This supports nearest-point-on-line distance behavior for the tested MongoDB configuration and geometry.
+
+The temporary collection was deleted after the experiment.
+
+### Reproduction Commands
+
+The following commands rerun the existing seeded benchmarks without inserting new data.
+
+**10k dataset:**
+
+```powershell
+$env:S2_DATASET = "10k"
+$env:RUN_S2_INSERT = "false"
+$env:RUN_S2_BENCHMARK = "true"
+npx tsx spikes/s2-geospatial.ts
+```
+
+**100k dataset:**
+
+```powershell
+$env:S2_DATASET = "100k"
+$env:RUN_S2_INSERT = "false"
+$env:RUN_S2_BENCHMARK = "true"
+npx tsx spikes/s2-geospatial.ts
+```
+
+The existing collections must be seeded before running benchmark-only mode.
+
+The winning plan was also examined through `mongosh` using `explain("executionStats")`.
 
 ### Limitations
 
-- Routes are synthetic three-point LineStrings, not real road routes.
-- The two query operators perform different geographic searches.
-- Timings come from single local execution observations.
-- No warmup, repeated-trial statistics, concurrency, or p95/p99
-  latency measurements were collected.
-- These findings do not establish production scalability.
+- The datasets use synthetic three-point routes rather than realistic road networks.
+- Longer and more complex routes may have different index selectivity.
+- Only a limited set of geographic query locations has been investigated.
+- Geospatial intersections do not establish correct pickup/drop-off ordering.
+- Geographic proximity does not measure actual walking or driving distances.
+- Reported execution times vary between runs and are not statistically rigorous benchmarks.
+- Concurrent workloads, repeated-trial statistics, and p95/p99 latency measurements remain untested.
+- No production scalability claim is supported by these experiments.
+
+### Next Steps
+
+- Evaluate realistic route shapes and pickup/drop-off distributions in v0.2.
+- Integrate geographic candidate retrieval with Turf.js route-positioning checks.
+- Benchmark longer routes and repeated query workloads.
+- Revisit candidate retrieval if real-world route geometries produce excessive document examination.
+- Continue resolving the remaining Gate 0 review findings.
+
 ## S3 — Route Positioning with Turf.js
 
 ### Objective
