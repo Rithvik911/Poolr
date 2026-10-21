@@ -362,8 +362,9 @@ async function benchmarkTwoCircleIntersects(
 ): Promise<void> {
   // Use an existing seeded route to ensure the query
   // has at least one matching candidate.
-  const seededRoute = await collection.findOne({});
-
+  const seededRoute = await collection.findOne({
+    name: "Route 1",
+  });
   assert.ok(seededRoute, "No seeded routes found");
 
   const coordinates = seededRoute.route.coordinates;
