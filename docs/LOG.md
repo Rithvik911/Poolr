@@ -237,7 +237,7 @@ Investigate how to project passenger pickup and drop-off locations onto a driver
 
 ### Test Results
 
-All 17 automated assertions passed, covering:
+All 20 automated assertions passed, covering:
 
 - Forward and reverse travel direction
 - Identical pickup and drop-off
@@ -249,6 +249,10 @@ All 17 automated assertions passed, covering:
 - Invalid coordinates
 - Minimum journey distance
 - Multi-turn routes
+- Regression: a later route visit can prevent a false-negative match
+  when the first drop-off projection occurs before pickup.
+- Proximity boundary: a passenger 0.99 km from the route is accepted.
+- Proximity boundary: a passenger 1.01 km from the route is rejected.
 
 ### Key Findings
 
@@ -264,7 +268,13 @@ All 17 automated assertions passed, covering:
 - Geographic proximity does not measure driving distance or detour time.
 - The 1 km proximity, 100 m journey, and 1 mm deduplication thresholds are experimental.
 - Large-scale performance and road-network behavior have not been evaluated.
-- Passing 17 targeted tests does not establish production correctness.
+- Passing 20 targeted tests does not establish production correctness.
+- The proximity tests cover points just inside and outside the 1 km
+  threshold, not exact-boundary floating-point behavior.
+- The regression demonstrates a first-projection false negative;
+  it does not establish Turf's whole-route tie-breaking behavior.
+- The experiment verifies whether a valid projection pair exists,
+  but does not select an optimal pair deterministically.
 
 ### Next
 
