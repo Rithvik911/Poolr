@@ -5,6 +5,7 @@ import {
   point,
   nearestPointOnLine,
   length,
+  destination,
 } from "@turf/turf";
 
 // ==================================================
@@ -336,7 +337,59 @@ test("Looping route allows later drop-off", () => {
 });
 
 // ==================================================
-// TEST 7 — Same projected position
+// TEST 7 — Later route visit regression
+// ==================================================
+
+// Regression: considering only the first projection
+// can reject a journey that has another valid pair.
+test("Later route visit prevents a false negative", () => {
+  const pickup: Coordinate = [80.21, 13.00];
+  const dropoff: Coordinate = [80.20, 13.00];
+
+  const pickupPositions = findRouteProjections(
+    loopingRoute,
+    pickup
+  );
+
+  const dropoffPositions = findRouteProjections(
+    loopingRoute,
+    dropoff
+  );
+
+  assert.ok(pickupPositions.length >= 1);
+  assert.ok(dropoffPositions.length >= 2);
+
+  // The first drop-off visit occurs before pickup.
+  assert.ok(
+    dropoffPositions[0].locationKm <
+      pickupPositions[0].locationKm
+  );
+
+  // A later drop-off visit must satisfy the journey
+  // distance requirement.
+  assert.ok(
+    dropoffPositions.some(
+      (position) =>
+        position.locationKm -
+          pickupPositions[0].locationKm >=
+        MIN_JOURNEY_DISTANCE_KM
+    ),
+    "A later drop-off visit must form a valid journey"
+  );
+
+  // The matching algorithm must accept the journey.
+  assert.equal(
+    hasValidPickupDropoffOrder(
+      loopingRoute,
+      pickup,
+      dropoff
+    ),
+    true
+  );
+});
+
+// ==================================================
+// TEST 8 — Same projected position
 // ==================================================
 
 test("Nearly identical positions are rejected", () => {
@@ -351,7 +404,7 @@ test("Nearly identical positions are rejected", () => {
 });
 
 // ==================================================
-// TEST 8 — Shared segment boundary
+// TEST 9 — Shared segment boundary
 // ==================================================
 
 test("Shared vertex is deduplicated", () => {
@@ -369,7 +422,7 @@ test("Shared vertex is deduplicated", () => {
 });
 
 // ==================================================
-// TEST 9 — Zero-length segment
+// TEST 10 — Zero-length segment
 // ==================================================
 
 test("Zero-length segment is safely skipped", () => {
@@ -393,7 +446,7 @@ test("Zero-length segment is safely skipped", () => {
 });
 
 // ==================================================
-// TEST 10 — Completely degenerate route
+// TEST 11 — Completely degenerate route
 // ==================================================
 
 test("Route with only zero-length segments is rejected", () => {
@@ -413,7 +466,7 @@ test("Route with only zero-length segments is rejected", () => {
 });
 
 // ==================================================
-// TEST 11 — Too few route coordinates
+// TEST 12 — Too few route coordinates
 // ==================================================
 
 test("Single-point route is rejected", () => {
@@ -432,7 +485,7 @@ test("Single-point route is rejected", () => {
 });
 
 // ==================================================
-// TEST 12 — Invalid longitude
+// TEST 13 — Invalid longitude
 // ==================================================
 
 test("Invalid longitude is rejected", () => {
@@ -452,7 +505,7 @@ test("Invalid longitude is rejected", () => {
 });
 
 // ==================================================
-// TEST 13 — Invalid latitude
+// TEST 14 — Invalid latitude
 // ==================================================
 
 test("Invalid latitude is rejected", () => {
@@ -472,7 +525,7 @@ test("Invalid latitude is rejected", () => {
 });
 
 // ==================================================
-// TEST 14 — NaN coordinates
+// TEST 15 — NaN coordinates
 // ==================================================
 
 test("Non-finite coordinates are rejected", () => {
@@ -487,7 +540,7 @@ test("Non-finite coordinates are rejected", () => {
 });
 
 // ==================================================
-// TEST 15 — Short journey under 100 m
+// TEST 16 — Short journey under 100 m
 // ==================================================
 
 test("Journey shorter than 100 m is rejected", () => {
@@ -501,7 +554,7 @@ test("Journey shorter than 100 m is rejected", () => {
 });
 
 // ==================================================
-// TEST 16 — Journey over 100 m
+// TEST 17 — Journey over 100 m
 // ==================================================
 
 test("Journey longer than 100 m is accepted", () => {
@@ -515,7 +568,7 @@ test("Journey longer than 100 m is accepted", () => {
 });
 
 // ==================================================
-// TEST 17 — Multi-turn route
+// TEST 18 — Multi-turn route
 // ==================================================
 
 test("Ordering works across multiple turns", () => {
@@ -542,6 +595,49 @@ test("Ordering works across multiple turns", () => {
       dropoff
     ),
     true
+  );
+});
+
+// ==================================================
+// TESTS 19–20 — Proximity threshold regression
+// ==================================================
+
+test("Passenger just inside 1 km is accepted", () => {
+  const passenger = destination(
+    point([80.21, 13.00]),
+    0.99,
+    0,
+    { units: "kilometers" }
+  ).geometry.coordinates as Coordinate;
+
+  const projections = findRouteProjections(
+    straightRoute,
+    passenger
+  );
+
+  assert.ok(
+    projections.length > 0,
+    "A passenger 0.99 km from the route should have a projection"
+  );
+});
+
+test("Passenger just outside 1 km is rejected", () => {
+  const passenger = destination(
+    point([80.21, 13.00]),
+    1.01,
+    0,
+    { units: "kilometers" }
+  ).geometry.coordinates as Coordinate;
+
+  const projections = findRouteProjections(
+    straightRoute,
+    passenger
+  );
+
+  assert.equal(
+    projections.length,
+    0,
+    "A passenger 1.01 km from the route should have no projections"
   );
 });
 
