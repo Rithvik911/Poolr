@@ -86,7 +86,64 @@ async function main() {
         countAfterCommit
     );
 
-    // Step 8: Disconnect
+    // Step 8: Demonstrate an operation missing the transaction session
+    await Item.deleteMany({});
+
+    const missingSession = await mongoose.startSession();
+
+    try {
+        await missingSession.withTransaction(async () => {
+            // This insert belongs to the transaction.
+            await Item.create(
+                [{ n: 5 }],
+                { session: missingSession, ordered: true }
+            );
+
+            // This insert deliberately omits the session.
+            // It executes outside the transaction.
+            await Item.create([{ n: 6 }]);
+
+            // Abort the transaction after both operations.
+            throw new Error('Intentional missing-session rollback');
+        });
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            error.message === 'Intentional missing-session rollback'
+        ) {
+            console.log('Verified missing-session rollback');
+        } else {
+            throw error;
+        }
+    } finally {
+        await missingSession.endSession();
+    }
+
+    // The transactional insert must disappear.
+    // The insert outside the session must remain.
+    const remainingItems = await Item.find({}).lean();
+
+    assert.equal(
+        remainingItems.length,
+        1,
+        'Exactly one out-of-transaction document must remain'
+    );
+
+    assert.equal(
+        remainingItems[0].n,
+        6,
+        'The document inserted without a session must survive rollback'
+    );
+
+    console.log(
+        'Documents after missing-session rollback:',
+        remainingItems
+    );
+
+    // Clean up so rerunning the experiment starts fresh.
+    await Item.deleteMany({});
+
+    // Step 9: Disconnect
     await mongoose.disconnect();
 }
 
@@ -94,4 +151,3 @@ main().catch((error) => {
     console.error(error);
     process.exit(1);
 });
-    

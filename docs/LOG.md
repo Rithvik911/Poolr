@@ -23,6 +23,14 @@
 - Replica-set restart: container returned to healthy status.
 - Fresh-volume initialization: PRIMARY state `1`.
 - Transactions after fresh initialization: rollback 0, commit 2.
+- Mixed-session rollback experiment:
+  - Transactional insert: `{ n: 5 }` with the session.
+  - Non-transactional insert: `{ n: 6 }` without the session.
+  - The transaction was deliberately aborted.
+  - Result: `{ n: 5 }` was rolled back; only `{ n: 6 }` remained.
+  - Assertions confirmed exactly one surviving document with `n: 6`.
+  - The script cleans up the remaining document after verification.
+
 
 ### Lessons learned
 
@@ -30,6 +38,12 @@
 - Explicit session propagation is necessary for Poolr's transactional repository methods.
 - Mongoose 9.11.2 required `ordered: true` for the tested multi-document `create()` operation with a session.
 - Tests must verify the intended failure, not merely the expected final document count.
+- A database operation executed without the transaction session is not
+  protected by that transaction's rollback, even when called inside
+  the `withTransaction()` callback.
+- The mixed-session scenario is reproducible in
+  `spikes/s1-transaction.ts` using `npx tsx spikes/s1-transaction.ts`.
+
 
 ### Next
 
