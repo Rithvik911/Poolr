@@ -279,3 +279,109 @@ All 20 automated assertions passed, covering:
 ### Next
 
 Document the architectural implications in ADR-0003 and review the S3 implementation before merging.
+
+
+
+## S4 — Concurrent Booking Consistency
+
+### Objective
+
+Investigate race conditions in seat reservations and evaluate
+strategies for maintaining booking consistency under concurrent
+requests.
+
+### Environment
+
+- MongoDB 7 running in a local Docker single-node replica set.
+- Mongoose 9.11.2 with TypeScript and Node.js.
+- Experiment: `spikes/s4-concurrent-booking.ts`.
+- Concurrent booking attempts: 50.
+- Initial available seats: 1, except in the duplicate-booking
+  experiment, which uses 2 seats.
+- Dedicated experimental ride and booking collections.
+
+### Implementation
+
+Five experiments were implemented:
+
+1. Unsafe read-then-write booking using a deliberately widened
+   race window and a non-conditional `$set` update.
+2. Atomic reservation using `findOneAndUpdate()` with
+   `availableSeats: { $gt: 0 }` and `$inc`.
+3. Transaction rollback after a deliberately injected failure
+   following the seat decrement.
+4. Concurrent transactional reservations using `withTransaction()`
+   and `Promise.allSettled()`.
+5. Duplicate-booking prevention using a compound unique index
+   on `(rideId, passengerId)`.
+
+### Observed Results
+
+| Experiment | Observation | Result |
+|---|---|---|
+| Unsafe booking | 50 bookings for 1 seat; 0 seats remaining | Overbooking reproduced |
+| Atomic reservation | 1 booking for 1 seat; 0 seats remaining | Assertions passed |
+| Transaction rollback | 1 seat remaining; 0 bookings | Assertions passed |
+| Concurrent transactions | 50 attempts, 1 successful booking, 0 rejected promises, 0 seats remaining | Invariants passed |
+| Duplicate prevention | 1 successful request, 1 E11000 rejection, 1 booking, 1 seat remaining | Assertions passed |
+
+These observations describe the recorded local execution, not
+guaranteed outcomes of every concurrent run.
+
+### Verified Invariants
+
+- Confirmed booking count must not exceed initial seat capacity.
+- Available seats plus committed bookings must equal initial capacity.
+- Successful reservation results must correspond to committed
+  booking records in the tested execution.
+- A failed transactional booking must not permanently consume a seat.
+- A passenger must not have two booking records for the same ride
+  when the compound unique index is enforced.
+
+### Key Findings
+
+- Reading availability and writing it later is unsafe under
+  concurrent requests.
+- Atomic conditional updates prevent competing requests from
+  decrementing the same final seat.
+- A conditional update alone does not atomically couple seat
+  reservation with booking-record creation.
+- MongoDB transactions allow the seat decrement and booking insert
+  to commit or roll back together.
+- Transactions alone do not enforce uniqueness of passenger-ride
+  bookings.
+- A compound unique index provides database-enforced duplicate
+  prevention.
+- Duplicate prevention and request idempotency are distinct concerns.
+
+### Verification
+
+Executed:
+
+`npx tsx spikes/s4-concurrent-booking.ts`
+
+Type checking passed using:
+
+`npx tsc --noEmit --target es2022 --module nodenext --moduleResolution nodenext --esModuleInterop --types node spikes/s4-concurrent-booking.ts`
+
+### Limitations
+
+- The experiments use local MongoDB and synthetic concurrent requests.
+- Only one observed execution is documented in the results table.
+- The unsafe experiment is intentionally nondeterministic.
+- The atomic-only strategy does not protect against booking-insert
+  failure after a successful seat decrement.
+- The experiments do not establish behavior under process crashes,
+  network partitions, or ambiguous transaction commit outcomes.
+- Explicit application-level retry and idempotency policies remain
+  future work.
+- A unique `(rideId, passengerId)` index enforces one booking record
+  per passenger per ride; cancellation and rebooking rules must be
+  considered separately.
+- Passing these experiments does not establish production readiness.
+
+### Next
+
+- Record the architectural implications in ADR-0004.
+- Review error handling, transaction retries, and test reproducibility.
+- Prepare the S4 experiment for pull-request review.
