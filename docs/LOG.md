@@ -385,3 +385,88 @@ Type checking passed using:
 - Record the architectural implications in ADR-0004.
 - Review error handling, transaction retries, and test reproducibility.
 - Prepare the S4 experiment for pull-request review.
+
+## v0.1 — Express and TypeScript Backend Foundation
+
+**Branch:** `feat/v0.1-backend-foundation`
+**Commit:** `65e22f5`
+**Status:** Initial backend foundation implemented and locally verified.
+
+### Objective
+
+Establish a TypeScript-based Express backend for Poolr, reusing the MongoDB infrastructure validated during Gate 0.
+
+### Implementation
+
+- Installed Express 5 and its TypeScript declarations.
+- Created `src/app.ts` to configure the Express application and JSON parsing middleware.
+- Created `src/server.ts` to load environment variables, establish the database connection, and start the HTTP server.
+- Created `src/config/database.ts` to manage the Mongoose connection.
+- Added strict TypeScript configuration in `tsconfig.json`.
+- Added `npm run dev` using `tsx watch` for automatic server restarts.
+- Implemented `GET /health` as the initial API endpoint.
+
+### Verification
+
+- MongoDB Docker container reported healthy.
+- Mongoose connected successfully.
+- Express started on port 3000.
+- `GET /health` returned HTTP 200 with `{"status":"ok","service":"Poolr API"}`.
+- `npx tsc --noEmit` passed without reported errors.
+- Git working tree was clean after commit `65e22f5`.
+
+### Architectural Decisions
+
+The Express application configuration is separated from server startup to support modular routing and future API testing.
+
+The backend establishes a MongoDB connection before opening the HTTP listener. Environment variables are loaded from `.env`, which is excluded from version control.
+
+Gate 0 experiments remain isolated in `spikes/` and are not treated as production implementations.
+
+### Current Limitations
+
+- No user authentication or authorization.
+- No ride-management APIs.
+- No automated backend test suite.
+- The health endpoint confirms HTTP responsiveness but does not independently test database readiness on each request.
+- Graceful shutdown and runtime database disconnection handling are not yet implemented.
+
+### Next Steps
+
+Implement user registration, password hashing, login, JWT-based authentication, request validation, and automated authentication tests.
+## v0.1 — User Registration
+
+**Branch:** `feat/v0.1-backend-foundation`
+**Status:** Registration implemented and manually verified; commit pending.
+
+### Implementation
+
+- Added the Mongoose User model with unique email indexing.
+- Added Zod validation for registration requests.
+- Implemented bcrypt password hashing with cost factor 12.
+- Implemented the registration service and controller.
+- Added the `POST /auth/register` endpoint.
+- Added HTTP 409 handling for existing emails and MongoDB email duplicate-key errors.
+- Registration responses exclude plaintext passwords and password hashes.
+
+### Verification
+
+- `npx tsc --noEmit` passed.
+- New user registration returned HTTP 201.
+- Duplicate registration returned HTTP 409.
+- MongoDB's `users` collection was verified.
+- Unique index `email_1` with `unique: true` was verified.
+- Two parallel registration requests returned HTTP 201 and HTTP 409.
+- MongoDB contained exactly one user document for the tested email.
+
+### Limitations
+
+- Concurrent-registration testing covered a small number of requests, not exhaustive stress testing.
+- Automated integration tests have not yet been implemented.
+- Login, JWT authentication, and protected routes remain pending.
+
+### Next Steps
+
+- Add repeatable automated registration tests.
+- Implement login and password verification.
+- Add JWT-based authentication and protected endpoints.

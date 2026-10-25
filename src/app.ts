@@ -1,16 +1,17 @@
-import express from "express";
+import express, { type Express } from "express";
+import authRoutes from "./routes/auth.routes.js";
 
-const app = express();
+const app: Express = express();
 
-// Parse incoming JSON request bodies
 app.use(express.json());
 
-// Health check API
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "ok",
     service: "Poolr API"
   });
 });
+
+app.use("/auth", authRoutes);
 
 export default app;
