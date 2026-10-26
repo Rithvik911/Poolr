@@ -470,3 +470,76 @@ Implement user registration, password hashing, login, JWT-based authentication, 
 - Add repeatable automated registration tests.
 - Implement login and password verification.
 - Add JWT-based authentication and protected endpoints.
+
+
+## v0.1 — Login and JWT Authentication
+
+### Implemented
+- Login validation using Zod
+- User lookup with Mongoose
+- Password verification using bcrypt.compare()
+- JWT generation with HS256 and 15-minute expiry
+- JWT authentication middleware
+- Protected GET /auth/me endpoint
+- User profile retrieval from MongoDB
+
+### Architecture
+POST /auth/login
+→ Login Controller
+→ Auth Service
+→ bcrypt verification
+→ JWT generation
+
+GET /auth/me
+→ requireAuth middleware
+→ JWT verification
+→ getMeController
+→ MongoDB user lookup
+→ Profile response
+
+### Verification
+- Successful login: 200 OK
+- Invalid credentials: 401 Unauthorized
+- Valid JWT: protected profile returned
+- Missing JWT: rejected
+- Invalid JWT: rejected
+
+### Key Learnings
+- JWTs contain a header, payload, and signature.
+- The JWT secret remains on the backend.
+- Clients send access tokens using the Bearer scheme.
+- jwt.verify() validates the signature and expiry.
+- res.locals shares request-specific data with controllers.
+- Authentication identifies users; authorization controls permissions.
+
+### Current Limitations
+- No refresh-token mechanism
+- No token revocation or logout mechanism
+- No login rate limiting
+- Authentication tests are manual, not automated
+```
+
+## Step 273 — Inspect Git changes
+
+In your Poolr project directory, run:
+
+```powershell
+git status --short
+git diff --check
+```
+
+Then check whether `.env` is tracked:
+
+```powershell
+git ls-files .env
+```
+
+**That last command should produce no output.** We must not commit your actual `JWT_SECRET`.
+
+Once the checks look good, we'll stage the specific files and create:
+
+```text
+feat: implement login and JWT authentication
+```
+
+**Your next action, mate:** Update `docs/LOG.md`, run those three Git commands, and paste the output. Then we'll commit safely! 💪

@@ -1,7 +1,10 @@
-
+import { generateAccessToken } from "../utils/jwt.js";
 import bcrypt from "bcrypt";
 import { UserModel } from "../models/user.model.js";
-import type { RegisterInput } from "../validators/auth.validator.js";
+import type {
+  RegisterInput,
+  LoginInput
+} from "../validators/auth.validator.js";
 
 export class EmailAlreadyExistsError extends Error {
   constructor() {
@@ -34,5 +37,44 @@ if (existingUser) {
     id: user._id.toString(),
     name: user.name,
     email: user.email
+  };
+}
+
+
+export class InvalidCredentialsError extends Error {
+  constructor() {
+    super("Invalid email or password");
+    this.name = "InvalidCredentialsError";
+  }
+}
+
+export async function loginUser(input: LoginInput) {
+  const user = await UserModel
+    .findOne({ email: input.email })
+    .select("+passwordHash");
+
+  if (!user) {
+    throw new InvalidCredentialsError();
+  }
+
+  const passwordMatches = await bcrypt.compare(
+    input.password,
+    user.passwordHash
+  );
+
+  if (!passwordMatches) {
+    throw new InvalidCredentialsError();
+  }
+
+  // Generate an access token after successful authentication
+  const accessToken = generateAccessToken(user._id.toString());
+
+  return {
+    accessToken,
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email
+    }
   };
 }
