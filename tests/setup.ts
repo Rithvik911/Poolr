@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { afterAll, beforeAll, beforeEach } from "vitest";
-import { connectDB } from "../src/config/database.js";
+import { connectDB } from "../src/config/database";
 
 beforeAll(async () => {
   const mongoURI = process.env.MONGO_URI;

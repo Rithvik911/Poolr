@@ -2,7 +2,7 @@
 import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { createLoginRateLimiter } from "../src/middleware/login-rate-limit.middleware.js";
+import { createLoginRateLimiter } from "../src/middleware/login-rate-limit.middleware";
 
 // Give each test its own limiter instance so request counts
 // cannot leak between tests and produce order-dependent failures.

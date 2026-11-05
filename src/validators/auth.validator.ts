@@ -4,6 +4,7 @@ export const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
 
   email: z.email().trim().toLowerCase(),
+  isDriver: z.boolean().default(false),
 
   password: z.string()
     .min(8)

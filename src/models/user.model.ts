@@ -1,4 +1,3 @@
-
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
 
 const userSchema = new Schema(
@@ -6,7 +5,7 @@ const userSchema = new Schema(
     name: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
 
     email: {
@@ -14,18 +13,22 @@ const userSchema = new Schema(
       required: true,
       unique: true,
       lowercase: true,
-      trim: true
+      trim: true,
     },
-
+    isDriver: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
     passwordHash: {
       type: String,
       required: true,
-      select: false
-    }
+      select: false,
+    },
   },
   {
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 export type User = InferSchemaType<typeof userSchema>;

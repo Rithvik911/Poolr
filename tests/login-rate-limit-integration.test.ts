@@ -1,7 +1,7 @@
 
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import app from "../src/app.js";
+import app from "../src/app";
 
 describe("Login rate limiter integration", () => {
   it("limits requests on the real /auth/login route", async () => {

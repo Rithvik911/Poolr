@@ -1,6 +1,6 @@
 
 import { describe, expect, it } from "vitest";
-import { validateEnv } from "../src/config/env.js";
+import { validateEnv } from "../src/config/env";
 
 const validEnv = {
   MONGO_URI: "mongodb://localhost:27017/poolr_test",

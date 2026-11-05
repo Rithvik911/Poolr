@@ -1,8 +1,8 @@
 ﻿import bcrypt from "bcrypt";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import app from "../src/app.js";
-import { UserModel } from "../src/models/user.model.js";
+import app from "../src/app";
+import { UserModel } from "../src/models/user.model";
 import jwt from "jsonwebtoken";
 
 const validUser = {
@@ -48,7 +48,25 @@ describe("Authentication integration", () => {
 
     expect(passwordMatches).toBe(true);
   });
+  it("registers a user with driver capability", async () => {
+    const response = await request(app)
+      .post("/auth/register")
+      .send({
+        ...validUser,
+        email: "driver@example.com",
+        isDriver: true,
+      });
 
+    expect(response.status).toBe(201);
+    expect(response.body.data.isDriver).toBe(true);
+
+    const savedUser = await UserModel.findOne({
+      email: "driver@example.com",
+    });
+
+    expect(savedUser).not.toBeNull();
+    expect(savedUser!.isDriver).toBe(true);
+  });
   it("rejects registration when the email already exists", async () => {
     const firstResponse = await request(app)
       .post("/auth/register")
@@ -178,6 +196,7 @@ describe("Authentication integration", () => {
         id: loggedInUser.id,
         name: validUser.name,
         email: validUser.email,
+        isDriver: false,
       },
     });
 

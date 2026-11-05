@@ -1,9 +1,9 @@
 
 import "dotenv/config";
 import { ZodError } from "zod";
-import app from "./app.js";
-import { connectDB } from "./config/database.js";
-import { validateEnv } from "./config/env.js";
+import app from "./app";
+import { connectDB } from "./config/database";
+import { validateEnv } from "./config/env";
 
 const PORT: number = 3000;
 

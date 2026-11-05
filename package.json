@@ -8,7 +8,8 @@
     "start": "tsx src/server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:typecheck": "tsc --project tsconfig.test.json"
+    "test:typecheck": "tsc --project tsconfig.test.json",
+    "db:migrate": "tsx migrations/001-create-ride-collection.ts"
   },
   "keywords": [],
   "author": "",

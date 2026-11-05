@@ -1,10 +1,10 @@
-import { generateAccessToken } from "../utils/jwt.js";
+import { generateAccessToken } from "../utils/jwt";
 import bcrypt from "bcrypt";
-import { UserModel } from "../models/user.model.js";
+import { UserModel } from "../models/user.model";
 import type {
   RegisterInput,
-  LoginInput
-} from "../validators/auth.validator.js";
+  LoginInput,
+} from "../validators/auth.validator";
 
 export class EmailAlreadyExistsError extends Error {
   constructor() {
@@ -15,12 +15,12 @@ export class EmailAlreadyExistsError extends Error {
 export async function registerUser(input: RegisterInput) {
   // Check whether this email is already registered
   const existingUser = await UserModel.findOne({
-    email: input.email
+    email: input.email,
   });
 
-if (existingUser) {
-  throw new EmailAlreadyExistsError();
-}
+  if (existingUser) {
+    throw new EmailAlreadyExistsError();
+  }
 
   // Hash the password before storing it
   const passwordHash = await bcrypt.hash(input.password, 12);
@@ -29,17 +29,18 @@ if (existingUser) {
   const user = await UserModel.create({
     name: input.name,
     email: input.email,
-    passwordHash
+    passwordHash,
+    isDriver: input.isDriver,
   });
 
   // Return only safe user information
   return {
     id: user._id.toString(),
     name: user.name,
-    email: user.email
+    email: user.email,
+    isDriver: user.isDriver,
   };
 }
-
 
 export class InvalidCredentialsError extends Error {
   constructor() {
@@ -49,9 +50,9 @@ export class InvalidCredentialsError extends Error {
 }
 
 export async function loginUser(input: LoginInput) {
-  const user = await UserModel
-    .findOne({ email: input.email })
-    .select("+passwordHash");
+  const user = await UserModel.findOne({ email: input.email }).select(
+    "+passwordHash",
+  );
 
   if (!user) {
     throw new InvalidCredentialsError();
@@ -59,7 +60,7 @@ export async function loginUser(input: LoginInput) {
 
   const passwordMatches = await bcrypt.compare(
     input.password,
-    user.passwordHash
+    user.passwordHash,
   );
 
   if (!passwordMatches) {
@@ -74,7 +75,8 @@ export async function loginUser(input: LoginInput) {
     user: {
       id: user._id.toString(),
       name: user.name,
-      email: user.email
-    }
+      email: user.email,
+      isDriver: user.isDriver,
+    },
   };
 }

@@ -1,13 +1,13 @@
 import type { Request, Response } from "express";
-import { registerSchema, loginSchema } from "../validators/auth.validator.js";
+import { registerSchema, loginSchema } from "../validators/auth.validator";
 import {
   registerUser,
   EmailAlreadyExistsError,
   loginUser,
   InvalidCredentialsError,
-} from "../services/auth.service.js";
+} from "../services/auth.service";
 import { MongoServerError } from "mongodb";
-import {UserModel} from "../models/user.model.js";
+import { UserModel } from "../models/user.model";
 
 export async function registerController(
   req: Request,
@@ -59,7 +59,7 @@ export async function registerController(
 
 export async function loginController(
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> {
   const result = loginSchema.safeParse(req.body);
 
@@ -67,7 +67,7 @@ export async function loginController(
     res.status(400).json({
       success: false,
       message: "Invalid login data",
-      errors: result.error.flatten()
+      errors: result.error.flatten(),
     });
     return;
   }
@@ -78,13 +78,13 @@ export async function loginController(
     res.status(200).json({
       success: true,
       message: "Login successful",
-      data: loginResult
+      data: loginResult,
     });
   } catch (error) {
     if (error instanceof InvalidCredentialsError) {
       res.status(401).json({
         success: false,
-        message: "Invalid email or password"
+        message: "Invalid email or password",
       });
       return;
     }
@@ -93,15 +93,14 @@ export async function loginController(
 
     res.status(500).json({
       success: false,
-      message: "Unable to log in"
+      message: "Unable to log in",
     });
   }
 }
 
-
 export async function getMeController(
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> {
   try {
     const userId = res.locals.userId;
@@ -110,7 +109,7 @@ export async function getMeController(
 
     if (!user) {
       res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
       return;
     }
@@ -119,14 +118,15 @@ export async function getMeController(
       user: {
         id: user._id.toString(),
         name: user.name,
-        email: user.email
-      }
+        email: user.email,
+        isDriver: user.isDriver,
+      },
     });
   } catch (error) {
     console.error("Get profile failed:", error);
 
     res.status(500).json({
-      message: "Unable to fetch user profile"
+      message: "Unable to fetch user profile",
     });
   }
 }

@@ -7,7 +7,11 @@ export async function connectDB(): Promise<void> {
     throw new Error("MONGO_URI is not defined");
   }
 
-  await mongoose.connect(mongoURI);
+  await mongoose.connect(mongoURI, {
+    // Development and tests may build schema indexes automatically.
+    // Production indexes must be created through explicit migrations.
+    autoIndex: process.env.NODE_ENV !== "production"
+  });
 
   console.log("MongoDB connected successfully");
 }

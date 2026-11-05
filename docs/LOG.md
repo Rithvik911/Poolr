@@ -517,7 +517,6 @@ GET /auth/me
 - No token revocation or logout mechanism
 - No login rate limiting
 - Authentication tests are manual, not automated
-```
 
 ## Step 273 — Inspect Git changes
 
@@ -543,3 +542,72 @@ feat: implement login and JWT authentication
 ```
 
 **Your next action, mate:** Update `docs/LOG.md`, run those three Git commands, and paste the output. Then we'll commit safely! 💪
+
+## 2026-11-02 to 2026-11-05 — v0.1 Ride Creation
+
+**Branch:** `feat/v0.1-ride-creation`
+**Time spent:** Not recorded
+**Status:** Implemented and locally verified; commit pending.
+
+### Work completed
+
+- Added `isDriver` as a user capability while retaining passenger access for every user.
+- Included `isDriver` in registration, login, and current-user responses.
+- Added the Ride model with driver ownership, lifecycle status, GeoJSON route, derived route length, departure time, seat counts, price in paise, and timestamps.
+- Made driver, route geometry, route length, departure, total seats, and price immutable through Mongoose.
+- Added strict Zod validation for ride-creation requests and rejected server-controlled fields.
+- Added the ride-creation service with driver authorization, deterministic time-boundary checks, Turf route-length calculation, and server-derived seat availability.
+- Added authenticated `POST /rides` routing and response formatting for INR.
+- Added derived `origin` and `destination` response fields without storing redundant route endpoints.
+- Added an idempotent MongoDB migration for the Ride collection validator and indexes.
+- Disabled Mongoose automatic index creation in production connections.
+- Added an explicit unique `users.email` index to the migration because production no longer relies on automatic indexing.
+- Added service, validator, and HTTP integration tests for ride creation.
+
+### Verified behavior
+
+- Route coordinate count is limited to 2–500.
+- Coordinates use `[longitude, latitude]` and stay within the supported envelope.
+- Consecutive duplicate points and antimeridian crossings are rejected.
+- Non-consecutive repeated coordinates remain valid for looping routes.
+- Route length must be at least 500 metres.
+- Departure is accepted from exactly 5 minutes through exactly 90 days in the future.
+- Seats are integer values from 1 through 8.
+- Price is integer paise from 0 through 1,000,000.
+- Passenger-only users cannot create rides.
+- Client requests cannot control ownership, status, available seats, route length, or timestamps.
+- Immutable Ride fields resist update attempts, while status and available seats remain mutable for future lifecycle operations.
+
+### Database evidence
+
+- The migration ran successfully twice, confirming idempotent behavior.
+- Verified Ride indexes:
+  - `_id_`
+  - `route_2dsphere`
+  - `status_1_departureTime_1`
+  - `driverId_1_departureTime_-1`
+- Verified `users.email_1` exists with `unique: true`.
+- A direct invalid write with `seatsAvailable: 3` and `seatsTotal: 2` failed with MongoDB document-validation error code 121.
+
+### Automated verification
+
+- Application type-check passed: `npx tsc --noEmit`.
+- Test type-check passed: `npm run test:typecheck`.
+- Migration type-check passed using the standalone TypeScript command recorded during the session.
+- Full suite passed: 8 test files, 72 tests.
+- `git diff --check` reported no whitespace errors.
+
+### Current limitations
+
+- The endpoint is currently `POST /rides`; the authoritative API contract requires the `/v1` prefix.
+- Ride retrieval, driver ride listing, cursor pagination, and pickup-only search remain unimplemented.
+- Shared `Clock`, centralized `AppError` handling, request IDs, Pino logging, and `/ready` remain pending.
+- Authentication still uses bcrypt rather than the specified Argon2id and does not yet include `USER | ADMIN` roles.
+- The migration is locally verified but is not yet exercised automatically in CI.
+
+### Next
+
+- Review and commit the Ride Creation checkpoint through a pull request.
+- Implement `GET /rides/:id` and `GET /me/rides` with cursor pagination.
+- Implement pickup-only ride search.
+- Continue the remaining v0.1 infrastructure and acceptance checklist.
