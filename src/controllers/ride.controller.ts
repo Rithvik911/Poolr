@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import type { Request, Response } from "express";
+import type { RideDocument } from "../models/ride.model";
 import {
   createRide,
   DriverRequiredError,
@@ -10,6 +11,26 @@ import {
   RouteTooShortError,
 } from "../services/ride.service";
 import { createRideSchema } from "../validators/ride.validator";
+
+function toRideResponse(ride: RideDocument) {
+  const coordinates = ride.route!.coordinates;
+
+  return {
+    id: ride._id.toString(),
+    driverId: ride.driverId.toString(),
+    status: ride.status,
+    route: ride.route,
+    origin: coordinates[0],
+    destination: coordinates[coordinates.length - 1],
+    routeLengthM: ride.routeLengthM,
+    departureTime: ride.departureTime.toISOString(),
+    seatsTotal: ride.seatsTotal,
+    seatsAvailable: ride.seatsAvailable,
+    pricePerSeatPaise: ride.pricePerSeatPaise,
+    currency: "INR",
+    priceDisplay: `₹${(ride.pricePerSeatPaise / 100).toFixed(2)}`,
+  };
+}
 
 export async function createRideController(
   req: Request,
@@ -32,28 +53,10 @@ export async function createRideController(
 
     const ride = await createRide(driverId, result.data);
 
-    const coordinates = result.data.route.coordinates;
-    const origin = coordinates[0];
-    const destination = coordinates[coordinates.length - 1];
-
     res.status(201).json({
       success: true,
       message: "Ride created successfully",
-      data: {
-        id: ride._id.toString(),
-        driverId: ride.driverId.toString(),
-        status: ride.status,
-        route: ride.route,
-        origin,
-        destination,
-        routeLengthM: ride.routeLengthM,
-        departureTime: ride.departureTime.toISOString(),
-        seatsTotal: ride.seatsTotal,
-        seatsAvailable: ride.seatsAvailable,
-        pricePerSeatPaise: ride.pricePerSeatPaise,
-        currency: "INR",
-        priceDisplay: `₹${(ride.pricePerSeatPaise / 100).toFixed(2)}`,
-      },
+      data: toRideResponse(ride),
     });
   } catch (error) {
     if (error instanceof DriverRequiredError) {
@@ -102,28 +105,9 @@ export async function getRideController(
 
     const ride = await getRideById(rideId);
 
-    // The Mongoose schema requires every ride to have a route.
-    const coordinates = ride.route!.coordinates;
-    const origin = coordinates[0];
-    const destination = coordinates[coordinates.length - 1];
-
     res.status(200).json({
       success: true,
-      data: {
-        id: ride._id.toString(),
-        driverId: ride.driverId.toString(),
-        status: ride.status,
-        route: ride.route,
-        origin,
-        destination,
-        routeLengthM: ride.routeLengthM,
-        departureTime: ride.departureTime.toISOString(),
-        seatsTotal: ride.seatsTotal,
-        seatsAvailable: ride.seatsAvailable,
-        pricePerSeatPaise: ride.pricePerSeatPaise,
-        currency: "INR",
-        priceDisplay: `₹${(ride.pricePerSeatPaise / 100).toFixed(2)}`,
-      },
+      data: toRideResponse(ride),
     });
   } catch (error) {
     if (error instanceof InvalidRideIdError) {
