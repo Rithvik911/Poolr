@@ -37,14 +37,16 @@ A carpooling backend. Drivers post rides with a route, departure time and seats.
 
 **Build**
 - [ ] Tooling: strict TypeScript, ESLint, Prettier, Husky, commitlint, `.env.example`
-- [ ] Compose with replica-set Mongo, plus a migration script for collections, indexes and validators (autoIndex off)
+- [x] Compose with replica-set Mongo, plus a migration script for collections, indexes and validators (autoIndex off)
 - [ ] Validated config, pino with request IDs, `Clock`, `AppError` hierarchy, central error handler
 - [ ] `/health` and `/ready`
 - [ ] Auth: register (normalized email, Argon2id), login (generic error), 60-minute access token, user/driver/admin guards, `GET /me`
 - [ ] Rides:
-  - [ ] Create validates 2 to 500 points, no consecutive duplicate points (loops allowed), route length of at least 500 m, no antimeridian crossing, departure 5 minutes to 90 days ahead, 1 to 8 seats, price 0 to 1,000,000 integer paise
-  - [ ] Origin, destination and length derived on the server; responses include `currency` and `priceDisplay`
-  - [ ] `GET /rides/:id`, `GET /me/rides` (cursor), pickup-only search
+  - [x] Create validates 2 to 500 points, no consecutive duplicate points (loops allowed), route length of at least 500 m, no antimeridian crossing, departure 5 minutes to 90 days ahead, 1 to 8 seats, price 0 to 1,000,000 integer paise
+  - [x] Origin, destination and length derived on the server; responses include `currency` and `priceDisplay`
+  - [x] `GET /rides/:id`
+  - [ ] `GET /me/rides` with cursor pagination
+  - [ ] Pickup-only search
 - [ ] Integration tests for every endpoint (success, validation, authz); keep the S1 rollback test as a regression test
 
 **Acceptance**

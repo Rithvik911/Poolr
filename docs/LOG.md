@@ -385,3 +385,252 @@ Type checking passed using:
 - Record the architectural implications in ADR-0004.
 - Review error handling, transaction retries, and test reproducibility.
 - Prepare the S4 experiment for pull-request review.
+
+## v0.1 — Express and TypeScript Backend Foundation
+
+**Branch:** `feat/v0.1-backend-foundation`
+**Commit:** `65e22f5`
+**Status:** Initial backend foundation implemented and locally verified.
+
+### Objective
+
+Establish a TypeScript-based Express backend for Poolr, reusing the MongoDB infrastructure validated during Gate 0.
+
+### Implementation
+
+- Installed Express 5 and its TypeScript declarations.
+- Created `src/app.ts` to configure the Express application and JSON parsing middleware.
+- Created `src/server.ts` to load environment variables, establish the database connection, and start the HTTP server.
+- Created `src/config/database.ts` to manage the Mongoose connection.
+- Added strict TypeScript configuration in `tsconfig.json`.
+- Added `npm run dev` using `tsx watch` for automatic server restarts.
+- Implemented `GET /health` as the initial API endpoint.
+
+### Verification
+
+- MongoDB Docker container reported healthy.
+- Mongoose connected successfully.
+- Express started on port 3000.
+- `GET /health` returned HTTP 200 with `{"status":"ok","service":"Poolr API"}`.
+- `npx tsc --noEmit` passed without reported errors.
+- Git working tree was clean after commit `65e22f5`.
+
+### Architectural Decisions
+
+The Express application configuration is separated from server startup to support modular routing and future API testing.
+
+The backend establishes a MongoDB connection before opening the HTTP listener. Environment variables are loaded from `.env`, which is excluded from version control.
+
+Gate 0 experiments remain isolated in `spikes/` and are not treated as production implementations.
+
+### Current Limitations
+
+- No user authentication or authorization.
+- No ride-management APIs.
+- No automated backend test suite.
+- The health endpoint confirms HTTP responsiveness but does not independently test database readiness on each request.
+- Graceful shutdown and runtime database disconnection handling are not yet implemented.
+
+### Next Steps
+
+Implement user registration, password hashing, login, JWT-based authentication, request validation, and automated authentication tests.
+## v0.1 — User Registration
+
+**Branch:** `feat/v0.1-backend-foundation`
+**Status:** Registration implemented and manually verified; commit pending.
+
+### Implementation
+
+- Added the Mongoose User model with unique email indexing.
+- Added Zod validation for registration requests.
+- Implemented bcrypt password hashing with cost factor 12.
+- Implemented the registration service and controller.
+- Added the `POST /auth/register` endpoint.
+- Added HTTP 409 handling for existing emails and MongoDB email duplicate-key errors.
+- Registration responses exclude plaintext passwords and password hashes.
+
+### Verification
+
+- `npx tsc --noEmit` passed.
+- New user registration returned HTTP 201.
+- Duplicate registration returned HTTP 409.
+- MongoDB's `users` collection was verified.
+- Unique index `email_1` with `unique: true` was verified.
+- Two parallel registration requests returned HTTP 201 and HTTP 409.
+- MongoDB contained exactly one user document for the tested email.
+
+### Limitations
+
+- Concurrent-registration testing covered a small number of requests, not exhaustive stress testing.
+- Automated integration tests have not yet been implemented.
+- Login, JWT authentication, and protected routes remain pending.
+
+### Next Steps
+
+- Add repeatable automated registration tests.
+- Implement login and password verification.
+- Add JWT-based authentication and protected endpoints.
+
+
+## v0.1 — Login and JWT Authentication
+
+### Implemented
+- Login validation using Zod
+- User lookup with Mongoose
+- Password verification using bcrypt.compare()
+- JWT generation with HS256 and 15-minute expiry
+- JWT authentication middleware
+- Protected GET /auth/me endpoint
+- User profile retrieval from MongoDB
+
+### Architecture
+POST /auth/login
+→ Login Controller
+→ Auth Service
+→ bcrypt verification
+→ JWT generation
+
+GET /auth/me
+→ requireAuth middleware
+→ JWT verification
+→ getMeController
+→ MongoDB user lookup
+→ Profile response
+
+### Verification
+- Successful login: 200 OK
+- Invalid credentials: 401 Unauthorized
+- Valid JWT: protected profile returned
+- Missing JWT: rejected
+- Invalid JWT: rejected
+
+### Key Learnings
+- JWTs contain a header, payload, and signature.
+- The JWT secret remains on the backend.
+- Clients send access tokens using the Bearer scheme.
+- jwt.verify() validates the signature and expiry.
+- res.locals shares request-specific data with controllers.
+- Authentication identifies users; authorization controls permissions.
+
+### Current Limitations
+- No refresh-token mechanism
+- No token revocation or logout mechanism
+- No login rate limiting
+- Authentication tests are manual, not automated
+
+## Step 273 — Inspect Git changes
+
+In your Poolr project directory, run:
+
+```powershell
+git status --short
+git diff --check
+```
+
+Then check whether `.env` is tracked:
+
+```powershell
+git ls-files .env
+```
+
+**That last command should produce no output.** We must not commit your actual `JWT_SECRET`.
+
+Once the checks look good, we'll stage the specific files and create:
+
+```text
+feat: implement login and JWT authentication
+```
+
+**Your next action, mate:** Update `docs/LOG.md`, run those three Git commands, and paste the output. Then we'll commit safely! 💪
+
+## 2026-11-02 to 2026-11-05 — v0.1 Ride Creation
+
+**Branch:** `feat/v0.1-ride-creation`
+**Time spent:** Not recorded
+**Status:** Implemented and locally verified; commit pending.
+
+### Work completed
+
+- Added `isDriver` as a user capability while retaining passenger access for every user.
+- Included `isDriver` in registration, login, and current-user responses.
+- Added the Ride model with driver ownership, lifecycle status, GeoJSON route, derived route length, departure time, seat counts, price in paise, and timestamps.
+- Made driver, route geometry, route length, departure, total seats, and price immutable through Mongoose.
+- Added strict Zod validation for ride-creation requests and rejected server-controlled fields.
+- Added the ride-creation service with driver authorization, deterministic time-boundary checks, Turf route-length calculation, and server-derived seat availability.
+- Added authenticated `POST /rides` routing and response formatting for INR.
+- Added derived `origin` and `destination` response fields without storing redundant route endpoints.
+- Added an idempotent MongoDB migration for the Ride collection validator and indexes.
+- Disabled Mongoose automatic index creation in production connections.
+- Added an explicit unique `users.email` index to the migration because production no longer relies on automatic indexing.
+- Added service, validator, and HTTP integration tests for ride creation.
+
+### Verified behavior
+
+- Route coordinate count is limited to 2–500.
+- Coordinates use `[longitude, latitude]` and stay within the supported envelope.
+- Consecutive duplicate points and antimeridian crossings are rejected.
+- Non-consecutive repeated coordinates remain valid for looping routes.
+- Route length must be at least 500 metres.
+- Departure is accepted from exactly 5 minutes through exactly 90 days in the future.
+- Seats are integer values from 1 through 8.
+- Price is integer paise from 0 through 1,000,000.
+- Passenger-only users cannot create rides.
+- Client requests cannot control ownership, status, available seats, route length, or timestamps.
+- Immutable Ride fields resist update attempts, while status and available seats remain mutable for future lifecycle operations.
+
+### Database evidence
+
+- The migration ran successfully twice, confirming idempotent behavior.
+- Verified Ride indexes:
+  - `_id_`
+  - `route_2dsphere`
+  - `status_1_departureTime_1`
+  - `driverId_1_departureTime_-1`
+- Verified `users.email_1` exists with `unique: true`.
+- A direct invalid write with `seatsAvailable: 3` and `seatsTotal: 2` failed with MongoDB document-validation error code 121.
+
+### Automated verification
+
+- Application type-check passed: `npx tsc --noEmit`.
+- Test type-check passed: `npm run test:typecheck`.
+- Migration type-check passed using the standalone TypeScript command recorded during the session.
+- Full suite passed: 8 test files, 72 tests.
+- `git diff --check` reported no whitespace errors.
+
+### Current limitations
+
+- The endpoint is currently `POST /rides`; the authoritative API contract requires the `/v1` prefix.
+- Ride retrieval, driver ride listing, cursor pagination, and pickup-only search remain unimplemented.
+- Shared `Clock`, centralized `AppError` handling, request IDs, Pino logging, and `/ready` remain pending.
+- Authentication still uses bcrypt rather than the specified Argon2id and does not yet include `USER | ADMIN` roles.
+- The migration is locally verified but is not yet exercised automatically in CI.
+
+### Next
+
+- Review and commit the Ride Creation checkpoint through a pull request.
+- Implement `GET /rides/:id` and `GET /me/rides` with cursor pagination.
+- Implement pickup-only ride search.
+- Continue the remaining v0.1 infrastructure and acceptance checklist.
+
+## 2026-11-05 — PR #7 Review Fixes
+
+**Branch:** `feat/v0.1-ride-creation`
+**Status:** Implemented and verified; review-fix commit pending.
+
+### Work completed
+
+- Strengthened the MongoDB Ride validator so seat counts must be numeric integers, `seatsTotal` stays between 1 and 8, and `seatsAvailable` stays between 0 and `seatsTotal`.
+- Verified through raw MongoDB writes that fractional, excessive, and non-numeric seat values fail with document-validation error code 121.
+- Removed the avoidable login timing difference between unknown-email and wrong-password failures by comparing unknown users against a fixed cost-12 dummy bcrypt hash.
+- Changed the v0.1 access-token lifetime from 15 minutes to the specified 60 minutes.
+- Added an integration assertion that JWT `exp - iat` equals 3,600 seconds.
+- Updated the README, authentication architecture, and version checklist to include Ride retrieval and the current verification baseline.
+
+### Verification
+
+- Migration type-check passed.
+- Application type-check passed.
+- Test type-check passed.
+- Authentication and rate-limit suites passed: 3 files and 17 tests.
+- Full suite passed before the token and documentation update: 8 files and 76 tests.
+- A final complete verification run remains required before committing the review fixes.
