@@ -45,7 +45,7 @@ A carpooling backend. Drivers post rides with a route, departure time and seats.
   - [x] Create validates 2 to 500 points, no consecutive duplicate points (loops allowed), route length of at least 500 m, no antimeridian crossing, departure 5 minutes to 90 days ahead, 1 to 8 seats, price 0 to 1,000,000 integer paise
   - [x] Origin, destination and length derived on the server; responses include `currency` and `priceDisplay`
   - [x] `GET /rides/:id`
-  - [ ] `GET /me/rides` with cursor pagination
+  - [x] `GET /me/rides` with cursor pagination
   - [ ] Pickup-only search
 - [ ] Integration tests for every endpoint (success, validation, authz); keep the S1 rollback test as a regression test
 

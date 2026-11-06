@@ -30,3 +30,20 @@ export const createRideSchema = z.object({
 }).strict();
 
 export type CreateRideInput = z.infer<typeof createRideSchema>;
+
+const listRidesLimitSchema = z.preprocess(
+  (value) => value ?? "10",
+  z
+    .string()
+    .regex(/^(?:[1-9]|[1-4]\d|50)$/)
+    .transform(Number),
+);
+
+export const listOwnRidesQuerySchema = z
+  .object({
+    limit: listRidesLimitSchema,
+    cursor: z.string().min(1).max(512).optional(),
+  })
+  .strict();
+
+export type ListOwnRidesQuery = z.infer<typeof listOwnRidesQuerySchema>;

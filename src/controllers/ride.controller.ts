@@ -6,11 +6,16 @@ import {
   DriverRequiredError,
   getRideById,
   InvalidDepartureTimeError,
+  InvalidRideCursorError,
   InvalidRideIdError,
+  listOwnRides,
   RideNotFoundError,
   RouteTooShortError,
 } from "../services/ride.service";
-import { createRideSchema } from "../validators/ride.validator";
+import {
+  createRideSchema,
+  listOwnRidesQuerySchema,
+} from "../validators/ride.validator";
 
 function toRideResponse(ride: RideDocument) {
   const coordinates = ride.route!.coordinates;
@@ -131,6 +136,51 @@ export async function getRideController(
     res.status(500).json({
       success: false,
       message: "Unable to fetch ride",
+    });
+  }
+}
+
+export async function listOwnRidesController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const result = listOwnRidesQuerySchema.safeParse(req.query);
+
+  if (!result.success) {
+    res.status(400).json({
+      success: false,
+      message: "Invalid ride listing query",
+      errors: result.error.flatten(),
+    });
+    return;
+  }
+
+  try {
+    const page = await listOwnRides(res.locals.userId, result.data);
+
+    res.status(200).json({
+      success: true,
+      data: page.rides.map(toRideResponse),
+      pagination: {
+        limit: result.data.limit,
+        hasMore: page.nextCursor !== null,
+        nextCursor: page.nextCursor,
+      },
+    });
+  } catch (error) {
+    if (error instanceof InvalidRideCursorError) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    console.error("List own rides failed:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to fetch rides",
     });
   }
 }
