@@ -4,20 +4,28 @@ import mongoose from "mongoose";
 const COLLECTION_NAME = "rides";
 
 const rideValidator = {
-  $and: [
-    {
-      seatsTotal: {
-        $type: ["double", "int", "long", "decimal"]
-      }
-    },
-    {
-      seatsAvailable: {
-        $type: ["double", "int", "long", "decimal"]
-      }
-    },
-    {
-      $expr: {
+  $expr: {
+    $cond: {
+      if: {
         $and: [
+          { $isNumber: "$seatsTotal" },
+          { $isNumber: "$seatsAvailable" }
+        ]
+      },
+      then: {
+        $and: [
+          {
+            $eq: [{ $mod: ["$seatsTotal", 1] }, 0]
+          },
+          {
+            $eq: [{ $mod: ["$seatsAvailable", 1] }, 0]
+          },
+          {
+            $gte: ["$seatsTotal", 1]
+          },
+          {
+            $lte: ["$seatsTotal", 8]
+          },
           {
             $gte: ["$seatsAvailable", 0]
           },
@@ -25,9 +33,10 @@ const rideValidator = {
             $lte: ["$seatsAvailable", "$seatsTotal"]
           }
         ]
-      }
+      },
+      else: false
     }
-  ]
+  }
 };
 
 async function runMigration(): Promise<void> {

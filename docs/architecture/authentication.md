@@ -16,7 +16,7 @@ flowchart LR
         Controller[Auth controllers]
         Validator[Zod schemas]
         Service[Auth service]
-        JWT[JWT utility\nHS256, 15-minute access token]
+        JWT[JWT utility\nHS256, 60-minute access token]
     end
 
     Bcrypt[bcrypt]
@@ -86,7 +86,7 @@ sequenceDiagram
     end
 ```
 
-Registration trims and constrains the name, normalizes the email to trimmed lowercase, requires a password of at least eight characters, and rejects passwords longer than 72 UTF-8 bytes. The service uses bcrypt with cost factor 12. The Mongoose model excludes `passwordHash` from normal queries, and the response contains only the user ID, name, and email. A MongoDB duplicate-key error on the email index is also translated to HTTP 409, covering a race between the preliminary lookup and insertion.
+Registration trims and constrains the name, normalizes the email to trimmed lowercase, requires a password of at least eight characters, and rejects passwords longer than 72 UTF-8 bytes. The service uses bcrypt with cost factor 12. The Mongoose model excludes `passwordHash` from normal queries, and the response contains only the user ID, name, email, and driver capability. A MongoDB duplicate-key error on the email index is also translated to HTTP 409, covering a race between the preliminary lookup and insertion.
 
 ## Login sequence
 
@@ -120,6 +120,8 @@ sequenceDiagram
             Service->>Mongo: findOne({ email }).select(+passwordHash)
             alt User is missing
                 Mongo-->>Service: no user
+                Service->>Bcrypt: compare(password, dummy hash)
+                Bcrypt-->>Service: false
                 Service-->>Controller: InvalidCredentialsError
                 Controller-->>Client: 401 Invalid email or password
             else User exists
@@ -131,7 +133,7 @@ sequenceDiagram
                     Controller-->>Client: 401 Invalid email or password
                 else Password matches
                     Bcrypt-->>Service: true
-                    Service->>JWT: sign({ userId }, JWT_SECRET, HS256, 15m)
+                    Service->>JWT: sign({ userId }, JWT_SECRET, HS256, 60m)
                     JWT-->>Service: access token
                     Service-->>Controller: token and safe user fields
                     Controller-->>Client: 200 Login successful
@@ -144,6 +146,8 @@ sequenceDiagram
 The limiter is created by `createLoginRateLimiter(limit = 10)` from `express-rate-limit`. Its fixed window is 15 minutes, it uses the library's default in-memory store and default IP-based keying, emits the combined draft-8 `RateLimit` header, disables legacy `X-RateLimit-*` headers, and returns a stable JSON error body. The tenth request is allowed; the eleventh request from the same resolved IP during the window receives HTTP 429.
 
 Because the limiter precedes `loginController`, every request reaching the login route counts, including malformed requests that later receive HTTP 400. A blocked request never reaches Zod validation, MongoDB, bcrypt, or JWT signing.
+
+When the email is not registered, the service compares the supplied password against a fixed dummy bcrypt hash before returning the generic credential error. Existing users use their stored hash. Both failure paths therefore perform one cost-12 bcrypt comparison, removing the large timing difference that would otherwise disclose whether an email exists.
 
 ## Protected profile sequence
 
@@ -179,7 +183,7 @@ sequenceDiagram
     end
 ```
 
-Access tokens are signed with HS256 and expire after 15 minutes. `requireAuth` accepts exactly one `Bearer <token>` credential, pins verification to HS256, validates that the decoded payload contains a string `userId`, and passes that ID through `res.locals`. There is currently no refresh-token, revocation, or logout mechanism.
+Access tokens are signed with HS256 and expire after 60 minutes. `requireAuth` accepts exactly one `Bearer <token>` credential, pins verification to HS256, validates that the decoded payload contains a string `userId`, and passes that ID through `res.locals`. There is currently no refresh-token, revocation, or logout mechanism.
 
 ## Rate-limiter construction and placement
 

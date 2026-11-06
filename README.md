@@ -23,10 +23,11 @@ The project is under active development. Claims in this README describe only beh
   - 1–8 seats
   - integer INR pricing in paise
   - server-controlled ownership, status, and available seats
+- Authenticated Ride retrieval by ID with malformed-ID and not-found handling.
 - Explicit MongoDB migration for Ride indexes, seat validation, and unique user email indexing.
 - Unit and integration coverage for authentication, rate limiting, request validation, Ride business rules, persistence rules, and HTTP behavior.
 
-Current local verification: **8 test files and 72 tests passing**.
+Current local verification: **8 test files and 76 tests passing**.
 
 ## Requirements
 
@@ -96,6 +97,7 @@ npm test
 - `POST /auth/login`
 - `GET /auth/me`
 - `POST /rides`
+- `GET /rides/:id`
 
 ## Roadmap
 
@@ -104,7 +106,7 @@ npm test
 - Add `/v1` API versioning and consistent error responses.
 - Add request IDs, structured logging, a shared Clock, centralized errors, and `/ready`.
 - Complete authentication roles and guards.
-- Add Ride retrieval, driver Ride listing with cursor pagination, and pickup-only search.
+- Add driver Ride listing with cursor pagination and pickup-only search.
 - Add CI, coverage reporting, and fresh-clone verification.
 
 ### Later milestones

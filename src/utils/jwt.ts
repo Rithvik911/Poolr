@@ -13,7 +13,7 @@ export function generateAccessToken(userId: string): string {
     secret,
     {
       algorithm: "HS256",
-      expiresIn: "15m"
+      expiresIn: "60m"
     }
   );
 }

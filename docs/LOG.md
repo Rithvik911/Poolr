@@ -611,3 +611,26 @@ feat: implement login and JWT authentication
 - Implement `GET /rides/:id` and `GET /me/rides` with cursor pagination.
 - Implement pickup-only ride search.
 - Continue the remaining v0.1 infrastructure and acceptance checklist.
+
+## 2026-11-05 — PR #7 Review Fixes
+
+**Branch:** `feat/v0.1-ride-creation`
+**Status:** Implemented and verified; review-fix commit pending.
+
+### Work completed
+
+- Strengthened the MongoDB Ride validator so seat counts must be numeric integers, `seatsTotal` stays between 1 and 8, and `seatsAvailable` stays between 0 and `seatsTotal`.
+- Verified through raw MongoDB writes that fractional, excessive, and non-numeric seat values fail with document-validation error code 121.
+- Removed the avoidable login timing difference between unknown-email and wrong-password failures by comparing unknown users against a fixed cost-12 dummy bcrypt hash.
+- Changed the v0.1 access-token lifetime from 15 minutes to the specified 60 minutes.
+- Added an integration assertion that JWT `exp - iat` equals 3,600 seconds.
+- Updated the README, authentication architecture, and version checklist to include Ride retrieval and the current verification baseline.
+
+### Verification
+
+- Migration type-check passed.
+- Application type-check passed.
+- Test type-check passed.
+- Authentication and rate-limit suites passed: 3 files and 17 tests.
+- Full suite passed before the token and documentation update: 8 files and 76 tests.
+- A final complete verification run remains required before committing the review fixes.

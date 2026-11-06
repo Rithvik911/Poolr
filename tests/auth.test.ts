@@ -136,6 +136,22 @@ describe("Authentication integration", () => {
     expect(response.body.data.user.id).toEqual(expect.any(String));
     expect(response.body.data.accessToken).toEqual(expect.any(String));
 
+    const tokenPayload = jwt.decode(response.body.data.accessToken);
+
+    expect(tokenPayload).not.toBeNull();
+    expect(typeof tokenPayload).not.toBe("string");
+
+    if (
+      !tokenPayload ||
+      typeof tokenPayload === "string" ||
+      typeof tokenPayload.iat !== "number" ||
+      typeof tokenPayload.exp !== "number"
+    ) {
+      throw new Error("Access token is missing numeric iat or exp claims");
+    }
+
+    expect(tokenPayload.exp - tokenPayload.iat).toBe(60 * 60);
+
     // Login responses must not expose stored authentication credentials.
     expect(response.body.data.user).not.toHaveProperty("password");
     expect(response.body.data.user).not.toHaveProperty("passwordHash");

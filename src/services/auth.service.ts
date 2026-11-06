@@ -6,6 +6,11 @@ import type {
   LoginInput,
 } from "../validators/auth.validator";
 
+// Used when an email is not registered so failed logins perform comparable
+// bcrypt work and do not reveal account existence through response timing.
+const DUMMY_PASSWORD_HASH =
+  "$2b$12$oQr.KviMAiTOL/miK3gAPescx82PTs2H2/DLptxKP4Ph2YHyZexfW";
+
 export class EmailAlreadyExistsError extends Error {
   constructor() {
     super("Email already registered");
@@ -54,16 +59,12 @@ export async function loginUser(input: LoginInput) {
     "+passwordHash",
   );
 
-  if (!user) {
-    throw new InvalidCredentialsError();
-  }
-
   const passwordMatches = await bcrypt.compare(
     input.password,
-    user.passwordHash,
+    user?.passwordHash ?? DUMMY_PASSWORD_HASH,
   );
 
-  if (!passwordMatches) {
+  if (!user || !passwordMatches) {
     throw new InvalidCredentialsError();
   }
 
