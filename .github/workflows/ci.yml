@@ -18,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    env:
+      NODE_ENV: test
+      MONGO_URI: mongodb://localhost:27017/poolr_test?replicaSet=rs0
+      JWT_SECRET: poolr-ci-only-secret-that-is-at-least-32-characters
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -36,3 +41,17 @@ jobs:
 
       - name: Type-check tests
         run: npm run test:typecheck
+
+      - name: Start MongoDB replica set
+        run: docker compose up --detach --wait --wait-timeout 120 mongo
+
+      - name: Run automated tests
+        run: npm test
+
+      - name: Show MongoDB logs after failure
+        if: failure()
+        run: docker compose logs mongo
+
+      - name: Stop test infrastructure
+        if: always()
+        run: docker compose down --volumes
