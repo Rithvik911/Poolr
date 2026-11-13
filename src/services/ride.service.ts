@@ -1,11 +1,20 @@
 import { length, lineString } from "@turf/turf";
+import { Types } from "mongoose";
+import { z } from "zod";
 import { RideModel } from "../models/ride.model";
+import type { RideDocument } from "../models/ride.model";
 import { UserModel } from "../models/user.model";
 import type { CreateRideInput } from "../validators/ride.validator";
-import { Types } from "mongoose";
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+const rideCursorPayloadSchema = z
+  .object({
+    departureTime: z.iso.datetime({ offset: true }),
+    id: z.string().regex(/^[0-9a-f]{24}$/),
+  })
+  .strict();
 
 export class DriverRequiredError extends Error {
   constructor() {
@@ -41,6 +50,80 @@ export class RideNotFoundError extends Error {
   }
 }
 
+export class InvalidRideCursorError extends Error {
+  constructor() {
+    super("Invalid ride cursor");
+    this.name = "InvalidRideCursorError";
+  }
+}
+
+interface RideCursor {
+  departureTime: Date;
+  id: Types.ObjectId;
+}
+
+interface RideListFilter {
+  driverId: Types.ObjectId;
+  $or?: Array<
+    | { departureTime: { $lt: Date } }
+    | { departureTime: Date; _id: { $lt: Types.ObjectId } }
+  >;
+}
+
+export interface ListOwnRidesOptions {
+  limit: number;
+  cursor?: string;
+}
+
+export interface ListOwnRidesResult {
+  rides: RideDocument[];
+  nextCursor: string | null;
+}
+
+function decodeRideCursor(cursor: string): RideCursor {
+  try {
+    if (!/^[A-Za-z0-9_-]+$/.test(cursor)) {
+      throw new InvalidRideCursorError();
+    }
+
+    const decoded = Buffer.from(cursor, "base64url");
+
+    if (decoded.toString("base64url") !== cursor) {
+      throw new InvalidRideCursorError();
+    }
+
+    const payload = rideCursorPayloadSchema.parse(
+      JSON.parse(decoded.toString("utf8")),
+    );
+    const departureTime = new Date(payload.departureTime);
+
+    if (payload.departureTime !== departureTime.toISOString()) {
+      throw new InvalidRideCursorError();
+    }
+
+    return {
+      departureTime,
+      id: new Types.ObjectId(payload.id),
+    };
+  } catch (error) {
+    if (error instanceof InvalidRideCursorError) {
+      throw error;
+    }
+
+    throw new InvalidRideCursorError();
+  }
+}
+
+function encodeRideCursor(ride: RideDocument): string {
+  return Buffer.from(
+    JSON.stringify({
+      departureTime: ride.departureTime.toISOString(),
+      id: ride._id.toString(),
+    }),
+    "utf8",
+  ).toString("base64url");
+}
+
 export async function getRideById(rideId: string) {
   if (!Types.ObjectId.isValid(rideId)) {
     throw new InvalidRideIdError();
@@ -53,6 +136,38 @@ export async function getRideById(rideId: string) {
   }
 
   return ride;
+}
+
+export async function listOwnRides(
+  driverId: string,
+  options: ListOwnRidesOptions,
+): Promise<ListOwnRidesResult> {
+  const filter: RideListFilter = {
+    driverId: new Types.ObjectId(driverId),
+  };
+
+  if (options.cursor) {
+    const cursor = decodeRideCursor(options.cursor);
+
+    filter.$or = [
+      { departureTime: { $lt: cursor.departureTime } },
+      {
+        departureTime: cursor.departureTime,
+        _id: { $lt: cursor.id },
+      },
+    ];
+  }
+
+  const rides = await RideModel.find(filter)
+    .sort({ departureTime: -1, _id: -1 })
+    .limit(options.limit + 1);
+  const hasMore = rides.length > options.limit;
+  const page = hasMore ? rides.slice(0, options.limit) : rides;
+
+  return {
+    rides: page,
+    nextCursor: hasMore ? encodeRideCursor(page[page.length - 1]!) : null,
+  };
 }
 
 export async function createRide(

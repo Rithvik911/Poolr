@@ -634,3 +634,43 @@ feat: implement login and JWT authentication
 - Authentication and rate-limit suites passed: 3 files and 17 tests.
 - Full suite passed before the token and documentation update: 8 files and 76 tests.
 - A final complete verification run remains required before committing the review fixes.
+
+## 2026-11-06 — v0.1 Driver Ride Listing
+
+**Branch:** `feat/v0.1-driver-ride-listing`
+**Status:** Implemented and locally verified; ready for pull-request review.
+
+### Work completed
+
+- Added authenticated `GET /me/rides` routing under a dedicated `/me` router.
+- Scoped every listing query to the authenticated user ID supplied by `requireAuth`; no owner ID is accepted from query parameters.
+- Added keyset pagination ordered by `departureTime` descending and `_id` descending.
+- Added an opaque URL-safe cursor containing both ordering keys, with canonical Base64URL, JSON shape, ISO timestamp, and ObjectId validation.
+- Added strict query validation: `limit` defaults to 10, accepts only canonical integers from 1 through 50, and unknown parameters are rejected.
+- Reused the existing Ride response mapper so create, get-by-ID, and listing responses expose the same public fields and derived INR display values.
+- Added Mermaid architecture documentation and a detailed engineering-journal entry.
+
+### Pagination behavior
+
+The service fetches `limit + 1` records to determine whether another page exists. When a cursor is supplied, the owner-scoped query selects records where either the departure time is earlier than the cursor time, or the departure time is equal and `_id` is lower. The final item returned to the client becomes the next cursor only when the extra record proves another page exists.
+
+### Automated verification
+
+- New listing integration suite: 20 tests passed.
+- Full suite: 9 files and 96 tests passed.
+- Application type-check: `npx tsc --noEmit` passed.
+- Test type-check: `npm run test:typecheck` passed.
+- Coverage includes missing authentication, ownership isolation, DTO mapping, empty results, default and explicit limits, stable ordering, `_id` tie-breaking, pagination across ties, malformed cursors, non-canonical limits, and unknown query parameters.
+
+### Security and correctness notes
+
+- Ownership is enforced inside the database predicate, not by loading all rides and filtering in application memory.
+- The cursor is navigation state rather than authorization state; the authenticated owner predicate is applied independently on every page.
+- `_id` is required as a unique tie-breaker because departure times alone are not a total order.
+- Cursor pagination provides stable traversal of the selected ordering but is not a database snapshot; concurrent inserts before the cursor are intentionally visible only from a fresh first-page request.
+
+### Current limitations
+
+- The API still lacks the planned `/v1` prefix and centralized error contract.
+- Cursors are encoded, not encrypted or signed; strict validation prevents malformed query construction, while ownership remains enforced by the database filter.
+- Pickup-only search remains the next Ride endpoint in the v0.1 plan.
