@@ -1,5 +1,7 @@
 # Poolr
 
+[![CI](https://github.com/Rithvik911/Poolr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Rithvik911/Poolr/actions/workflows/ci.yml)
+
 Poolr is a carpooling backend built with Node.js, TypeScript, Express, MongoDB, Mongoose, Zod, and Turf. Drivers publish rides with GeoJSON routes, and later milestones add route-aware search, concurrency-safe booking, and batch matching.
 
 The project is under active development. Claims in this README describe only behavior currently backed by tests or recorded experiments.
