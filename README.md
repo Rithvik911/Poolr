@@ -111,7 +111,7 @@ npm test
 - Add request IDs, structured logging, a shared Clock, centralized errors, and `/ready`.
 - Complete authentication roles and guards.
 - Add pickup-only Ride search.
-- Add CI, coverage reporting, and fresh-clone verification.
+- Complete fresh-clone verification.
 
 ### Later milestones
 

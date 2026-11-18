@@ -45,8 +45,8 @@ jobs:
       - name: Start MongoDB replica set
         run: docker compose up --detach --wait --wait-timeout 120 mongo
 
-      - name: Run automated tests
-        run: npm test
+      - name: Run automated tests with coverage
+        run: npm run test:coverage
 
       - name: Show MongoDB logs after failure
         if: failure()
