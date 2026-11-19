@@ -46,7 +46,7 @@ A carpooling backend. Drivers post rides with a route, departure time and seats.
   - [x] Origin, destination and length derived on the server; responses include `currency` and `priceDisplay`
   - [x] `GET /rides/:id`
   - [x] `GET /me/rides` with cursor pagination
-  - [ ] Pickup-only search
+  - [x] Pickup-only search
 - [ ] Integration tests for every endpoint (success, validation, authz); keep the S1 rollback test as a regression test
 
 **Acceptance**
