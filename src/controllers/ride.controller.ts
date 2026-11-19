@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import type { Request, Response } from "express";
-import type { RideDocument } from "../models/ride.model";
+import { toRideResponse } from "../utils/ride-response";
+
 import {
   createRide,
   DriverRequiredError,
@@ -16,26 +17,6 @@ import {
   createRideSchema,
   listOwnRidesQuerySchema,
 } from "../validators/ride.validator";
-
-function toRideResponse(ride: RideDocument) {
-  const coordinates = ride.route!.coordinates;
-
-  return {
-    id: ride._id.toString(),
-    driverId: ride.driverId.toString(),
-    status: ride.status,
-    route: ride.route,
-    origin: coordinates[0],
-    destination: coordinates[coordinates.length - 1],
-    routeLengthM: ride.routeLengthM,
-    departureTime: ride.departureTime.toISOString(),
-    seatsTotal: ride.seatsTotal,
-    seatsAvailable: ride.seatsAvailable,
-    pricePerSeatPaise: ride.pricePerSeatPaise,
-    currency: "INR",
-    priceDisplay: `₹${(ride.pricePerSeatPaise / 100).toFixed(2)}`,
-  };
-}
 
 export async function createRideController(
   req: Request,

@@ -27,10 +27,11 @@ The project is under active development. Claims in this README describe only beh
   - server-controlled ownership, status, and available seats
 - Authenticated Ride retrieval by ID with malformed-ID and not-found handling.
 - Authenticated driver Ride listing with owner-scoped, stable cursor pagination.
+- Authenticated pickup-only Ride search with safe geographic candidate filtering, exact Turf walking distance, and deterministic ranking.
 - Explicit MongoDB migration for Ride indexes, seat validation, and unique user email indexing.
 - Unit and integration coverage for authentication, rate limiting, request validation, Ride business rules, persistence rules, and HTTP behavior.
 
-Current local verification: **9 test files and 96 tests passing**.
+Current local verification: **12 test files and 131 tests passing**.
 
 ## Requirements
 
@@ -100,6 +101,7 @@ npm test
 - `POST /auth/login`
 - `GET /auth/me`
 - `POST /rides`
+- `GET /rides/search?pickupLng=77.5946&pickupLat=12.9716`
 - `GET /rides/:id`
 - `GET /me/rides?limit=10&cursor=...`
 
@@ -110,7 +112,6 @@ npm test
 - Add `/v1` API versioning and consistent error responses.
 - Add request IDs, structured logging, a shared Clock, centralized errors, and `/ready`.
 - Complete authentication roles and guards.
-- Add pickup-only Ride search.
 - Complete fresh-clone verification.
 
 ### Later milestones
@@ -124,7 +125,9 @@ npm test
 ## Current limitations
 
 - No payments, chat, live tracking, notifications, ratings, or client application.
-- Search and booking flows are not yet implemented.
+- Search is pickup-only; drop-off matching and route-order checks remain v0.2 work.
+- Walking distance is straight-line Turf distance, not pedestrian road-network distance.
+- Booking flows are not yet implemented.
 - Benchmarks use synthetic data and do not represent production traffic.
 - The API currently lacks its final `/v1` prefix and centralized error contract.
 - Authentication currently uses bcrypt; the specification targets Argon2id before v0.1 completion.
