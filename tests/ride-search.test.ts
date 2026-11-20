@@ -4,6 +4,7 @@ import app from "../src/app";
 import { RideModel } from "../src/models/ride.model";
 import { UserModel } from "../src/models/user.model";
 import { generateAccessToken } from "../src/utils/jwt";
+import { expectApiError } from "./api-contract-assertions";
 
 const PICKUP = [77.5946, 12.9716] as const;
 
@@ -33,19 +34,21 @@ function futureSearchWindow() {
   return { departAfter, departureTime, departBefore };
 }
 
-describe("GET /rides/search", () => {
+describe("GET /v1/rides/search", () => {
   it("requires authentication", async () => {
     const response = await request(app)
-      .get("/rides/search")
+      .get("/v1/rides/search")
       .query({
         pickupLng: PICKUP[0],
         pickupLat: PICKUP[1],
       });
 
-    expect(response.status).toBe(401);
-    expect(response.body).toEqual({
-      message: "Authorization header missing",
-    });
+    expectApiError(
+      response,
+      401,
+      "UNAUTHENTICATED",
+      "Authorization header is required",
+    );
   });
 
   it("matches the fixed search route before the dynamic ride ID route", async () => {
@@ -54,11 +57,11 @@ describe("GET /rides/search", () => {
     );
 
     const response = await request(app)
-      .get("/rides/search")
+      .get("/v1/rides/search")
       .set("Authorization", `Bearer ${accessToken}`);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
+    expect(response.body.error.message).toBe(
       "Invalid ride search query",
     );
   });
@@ -69,7 +72,7 @@ describe("GET /rides/search", () => {
     );
 
     const response = await request(app)
-      .get("/rides/search")
+      .get("/v1/rides/search")
       .set("Authorization", `Bearer ${accessToken}`)
       .query({
         pickupLng: PICKUP[0],
@@ -78,11 +81,12 @@ describe("GET /rides/search", () => {
       });
 
     expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({
-      success: false,
-      message: "Invalid ride search query",
-    });
-    expect(response.body.errors).toBeDefined();
+    expectApiError(
+      response,
+      400,
+      "VALIDATION_ERROR",
+      "Invalid ride search query",
+    );
   });
 
   it("returns a controlled error for an invalid departure window", async () => {
@@ -91,7 +95,7 @@ describe("GET /rides/search", () => {
     );
 
     const response = await request(app)
-      .get("/rides/search")
+      .get("/v1/rides/search")
       .set("Authorization", `Bearer ${accessToken}`)
       .query({
         pickupLng: PICKUP[0],
@@ -100,12 +104,12 @@ describe("GET /rides/search", () => {
         departBefore: "2026-11-20T09:00:00.000Z",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      success: false,
-      message:
-        "Departure window must be ordered and no longer than 7 days",
-    });
+    expectApiError(
+      response,
+      400,
+      "VALIDATION_ERROR",
+      "Departure window must be ordered and no longer than 7 days",
+    );
   });
 
   it("returns public ride data with the calculated pickup walk", async () => {
@@ -138,7 +142,7 @@ describe("GET /rides/search", () => {
     });
 
     const response = await request(app)
-      .get("/rides/search")
+      .get("/v1/rides/search")
       .set("Authorization", `Bearer ${accessToken}`)
       .query({
         pickupLng: PICKUP[0],
@@ -149,35 +153,32 @@ describe("GET /rides/search", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
-      success: true,
-      data: {
-        truncated: false,
-        results: [
-          {
-            id: ride._id.toString(),
-            driverId: driver._id.toString(),
-            status: "SCHEDULED",
-            origin: [77.59, PICKUP[1]],
-            destination: [77.6, PICKUP[1]],
-            departureTime: departureTime.toISOString(),
-            seatsTotal: 3,
-            seatsAvailable: 3,
-            pricePerSeatPaise: 12_000,
-            currency: "INR",
-            priceDisplay: "₹120.00",
-            walkPickupM: expect.any(Number),
-          },
-        ],
-      },
+      truncated: false,
+      results: [
+        {
+          id: ride._id.toString(),
+          driverId: driver._id.toString(),
+          status: "SCHEDULED",
+          origin: [77.59, PICKUP[1]],
+          destination: [77.6, PICKUP[1]],
+          departureTime: departureTime.toISOString(),
+          seatsTotal: 3,
+          seatsAvailable: 3,
+          pricePerSeatPaise: 12_000,
+          currency: "INR",
+          priceDisplay: "₹120.00",
+          walkPickupM: expect.any(Number),
+        },
+      ],
     });
-    expect(response.body.data.results[0]).not.toHaveProperty(
+    expect(response.body.results[0]).not.toHaveProperty(
       "_id",
     );
-    expect(response.body.data.results[0]).not.toHaveProperty(
+    expect(response.body.results[0]).not.toHaveProperty(
       "__v",
     );
     expect(
-      response.body.data.results[0].walkPickupM,
+      response.body.results[0].walkPickupM,
     ).toBeLessThan(0.1);
   });
 
@@ -188,7 +189,7 @@ describe("GET /rides/search", () => {
     const { departAfter, departBefore } = futureSearchWindow();
 
     const response = await request(app)
-      .get("/rides/search")
+      .get("/v1/rides/search")
       .set("Authorization", `Bearer ${accessToken}`)
       .query({
         pickupLng: PICKUP[0],
@@ -199,11 +200,8 @@ describe("GET /rides/search", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      success: true,
-      data: {
-        results: [],
-        truncated: false,
-      },
+      results: [],
+      truncated: false,
     });
   });
 });

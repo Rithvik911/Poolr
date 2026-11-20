@@ -38,12 +38,17 @@ export async function registerUser(input: RegisterInput) {
     isDriver: input.isDriver,
   });
 
-  // Return only safe user information
-  return {
+  // Return only safe user information and authenticate the new account.
+  const safeUser = {
     id: user._id.toString(),
     name: user.name,
     email: user.email,
     isDriver: user.isDriver,
+  };
+
+  return {
+    user: safeUser,
+    accessToken: generateAccessToken(safeUser.id),
   };
 }
 

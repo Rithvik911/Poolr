@@ -97,20 +97,20 @@ npm test
 ## Current endpoints
 
 - `GET /health`
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /auth/me`
-- `POST /rides`
-- `GET /rides/search?pickupLng=77.5946&pickupLat=12.9716`
-- `GET /rides/:id`
-- `GET /me/rides?limit=10&cursor=...`
+- `GET /ready`
+- `POST /v1/auth/register`
+- `POST /v1/auth/login`
+- `GET /v1/me`
+- `POST /v1/rides`
+- `GET /v1/rides/search?pickupLng=77.5946&pickupLat=12.9716`
+- `GET /v1/rides/:id`
+- `GET /v1/me/rides?limit=10&cursor=...`
 
 ## Roadmap
 
 ### v0.1
 
-- Add `/v1` API versioning and consistent error responses.
-- Add request IDs, structured logging, a shared Clock, centralized errors, and `/ready`.
+- Add structured Pino logging and a shared Clock.
 - Complete authentication roles and guards.
 - Complete fresh-clone verification.
 
@@ -129,7 +129,7 @@ npm test
 - Walking distance is straight-line Turf distance, not pedestrian road-network distance.
 - Booking flows are not yet implemented.
 - Benchmarks use synthetic data and do not represent production traffic.
-- The API currently lacks its final `/v1` prefix and centralized error contract.
+- Pre-Sprint-2 unversioned route aliases are intentionally unsupported and return the standard 404 error envelope.
 - Authentication currently uses bcrypt; the specification targets Argon2id before v0.1 completion.
 
 See `docs/versions.md` for the complete milestone checklist and `docs/LOG.md` for recorded implementation evidence.
