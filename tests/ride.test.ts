@@ -4,6 +4,7 @@ import app from "../src/app";
 import { RideModel } from "../src/models/ride.model";
 import { UserModel } from "../src/models/user.model";
 import { generateAccessToken } from "../src/utils/jwt";
+import { expectApiError } from "./api-contract-assertions";
 
 function validRideBody() {
   return {
@@ -27,7 +28,7 @@ async function registerAndLogin(
   const password = "TestPass123!";
 
   await request(app)
-    .post("/auth/register")
+    .post("/v1/auth/register")
     .send({
       name: "Ride Test User",
       email,
@@ -37,14 +38,14 @@ async function registerAndLogin(
     .expect(201);
 
   const loginResponse = await request(app)
-    .post("/auth/login")
+    .post("/v1/auth/login")
     .send({
       email,
       password,
     })
     .expect(200);
 
-  return loginResponse.body.data.accessToken;
+  return loginResponse.body.accessToken;
 }
 
 async function createTestAccessToken(
@@ -66,7 +67,7 @@ describe("Ride integration", () => {
     const accessToken = await registerAndLogin("ride.driver@example.com", true);
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send(validRideBody());
 
@@ -101,7 +102,7 @@ describe("Ride integration", () => {
   });
 
   it("rejects ride creation without authentication", async () => {
-    const response = await request(app).post("/rides").send(validRideBody());
+    const response = await request(app).post("/v1/rides").send(validRideBody());
 
     expect(response.status).toBe(401);
     expect(await RideModel.countDocuments()).toBe(0);
@@ -114,16 +115,16 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send(validRideBody());
 
-    expect(response.status).toBe(403);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: "Driver capability is required to create a ride",
-    });
+    expectApiError(
+      response,
+      403,
+      "FORBIDDEN",
+      "Driver capability is required to create a ride",
+    );
 
     expect(await RideModel.countDocuments()).toBe(0);
   });
@@ -135,7 +136,7 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
         ...validRideBody(),
@@ -143,7 +144,7 @@ describe("Ride integration", () => {
       });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid ride data");
+    expect(response.body.error.message).toBe("Invalid ride data");
     expect(await RideModel.countDocuments()).toBe(0);
   });
 
@@ -154,7 +155,7 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
         ...validRideBody(),
@@ -168,7 +169,7 @@ describe("Ride integration", () => {
       });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid ride data");
+    expect(response.body.error.message).toBe("Invalid ride data");
     expect(await RideModel.countDocuments()).toBe(0);
   });
 
@@ -176,7 +177,7 @@ describe("Ride integration", () => {
     const accessToken = await registerAndLogin("short.route@example.com", true);
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
         ...validRideBody(),
@@ -191,7 +192,7 @@ describe("Ride integration", () => {
 
     expect(response.status).toBe(400);
 
-    expect(response.body.message).toBe(
+    expect(response.body.error.message).toBe(
       "Route must be at least 500 metres long",
     );
 
@@ -205,7 +206,7 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
         ...validRideBody(),
@@ -216,7 +217,7 @@ describe("Ride integration", () => {
       });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid ride data");
+    expect(response.body.error.message).toBe("Invalid ride data");
     expect(await RideModel.countDocuments()).toBe(0);
   });
 
@@ -227,7 +228,7 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
         ...validRideBody(),
@@ -253,7 +254,7 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
         ...validRideBody(),
@@ -277,7 +278,7 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
         ...validRideBody(),
@@ -302,7 +303,7 @@ describe("Ride integration", () => {
     );
 
     const createResponse = await request(app)
-      .post("/rides")
+      .post("/v1/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .send(validRideBody())
       .expect(201);
@@ -310,7 +311,7 @@ describe("Ride integration", () => {
     const rideId = createResponse.body.data.id;
 
     const response = await request(app)
-      .get(`/rides/${rideId}`)
+      .get(`/v1/rides/${rideId}`)
       .set("Authorization", `Bearer ${accessToken}`);
 
     expect(response.status).toBe(200);
@@ -339,13 +340,14 @@ describe("Ride integration", () => {
 
   it("rejects ride retrieval without authentication", async () => {
     const response = await request(app)
-      .get("/rides/507f1f77bcf86cd799439011");
+      .get("/v1/rides/507f1f77bcf86cd799439011");
 
-    expect(response.status).toBe(401);
-
-    expect(response.body).toEqual({
-      message: "Authorization header missing",
-    });
+    expectApiError(
+      response,
+      401,
+      "UNAUTHENTICATED",
+      "Authorization header is required",
+    );
   });
 
   it("rejects a malformed ride ID", async () => {
@@ -355,15 +357,15 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .get("/rides/not-a-valid-object-id")
+      .get("/v1/rides/not-a-valid-object-id")
       .set("Authorization", `Bearer ${accessToken}`);
 
-    expect(response.status).toBe(400);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: "Invalid ride ID",
-    });
+    expectApiError(
+      response,
+      400,
+      "VALIDATION_ERROR",
+      "Invalid ride ID",
+    );
   });
 
   it("returns 404 when the ride does not exist", async () => {
@@ -373,14 +375,14 @@ describe("Ride integration", () => {
     );
 
     const response = await request(app)
-      .get("/rides/507f1f77bcf86cd799439011")
+      .get("/v1/rides/507f1f77bcf86cd799439011")
       .set("Authorization", `Bearer ${accessToken}`);
 
-    expect(response.status).toBe(404);
-
-    expect(response.body).toEqual({
-      success: false,
-      message: "Ride not found",
-    });
+    expectApiError(
+      response,
+      404,
+      "NOT_FOUND",
+      "Ride not found",
+    );
   });
 });

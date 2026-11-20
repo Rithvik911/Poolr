@@ -674,3 +674,46 @@ The service fetches `limit + 1` records to determine whether another page exists
 - The API still lacks the planned `/v1` prefix and centralized error contract.
 - Cursors are encoded, not encrypted or signed; strict validation prevents malformed query construction, while ownership remains enforced by the database filter.
 - Pickup-only search remains the next Ride endpoint in the v0.1 plan.
+
+## 2026-11-19 — Sprint 2 API Contracts
+
+**Branch:** `feat/v0.1-api-contracts`
+**Status:** Implemented and locally verified; working tree intentionally left uncommitted for owner review.
+
+### Work completed
+
+- Mounted application routes beneath a coordinated `/v1` router while keeping `/health` and `/ready` public and unversioned.
+- Moved the current-user profile contract from `/auth/me` to `GET /v1/me`; own-ride listing is now `GET /v1/me/rides`.
+- Added a typed `AppError` and one central JSON error handler for validation, authentication, authorization, not-found, rate-limit, readiness, and unexpected failures.
+- Added request-ID middleware before JSON parsing, preserving safe caller IDs or generating UUIDs, returning `X-Request-Id`, and correlating error bodies and unexpected-error logs.
+- Normalized malformed JSON and unmatched routes into the shared error envelope.
+- Added Mongo-backed `/ready`: connected returns 200; disconnected returns correlated `503 SERVICE_BUSY`. `/health` retained its existing liveness body and remains independent of MongoDB.
+- Updated registration and login to return `{ user, accessToken }`; registration now authenticates the new account immediately.
+- Updated pickup-only search to return the specified `{ results, truncated }` success contract.
+- Routed auth, Ride create/get/list/search, and login-rate-limit failures through the central handler.
+- Intentionally omitted compatibility aliases for pre-release unversioned paths; old paths return the standard 404 envelope.
+
+### Contract regression coverage
+
+- Generated request IDs on successful responses.
+- Valid caller-ID preservation and invalid-ID replacement.
+- Header/body request-ID equality for errors.
+- Standard envelopes for authentication, validation, authorization, not-found, rate-limit, readiness, malformed JSON, and unexpected failures.
+- Internal-error detail suppression with correlated server logging.
+- Rejection of the old unversioned route tree.
+- Mongo readiness in connected and disconnected states.
+
+### Automated verification
+
+- Production TypeScript: `npx tsc --noEmit` passed.
+- Test TypeScript: `npm run test:typecheck` passed.
+- Full suite: 13 files and 139 tests passed.
+- Coverage: 89.82% statements, 85.29% branches, 95% functions, and 89.82% lines.
+- `git diff --check` passed.
+
+### Migration and remaining work
+
+- Clients must migrate from `/auth`, `/rides`, and `/me/rides` to the corresponding `/v1` paths.
+- Clients parse failures from `error.code`, `error.message`, `error.details`, and `error.requestId`.
+- Registration/login and pickup-search consumers must adopt the direct success objects documented in `docs/architecture/api-contracts.md`.
+- Pino structured request logging and an injectable `Clock` remain separate v0.1 tasks; this Sprint provides correlation in headers, error bodies, and unexpected-error logs without claiming those remaining items.

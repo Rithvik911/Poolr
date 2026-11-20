@@ -1,6 +1,6 @@
 # Pickup-only Ride search
 
-`GET /rides/search` lets an authenticated user find scheduled Rides whose stored route passes within a requested straight-line walking distance of a pickup point. This is the v0.1 pickup-only slice; drop-off matching and route-order evaluation remain v0.2 work.
+`GET /v1/rides/search` lets an authenticated user find scheduled Rides whose stored route passes within a requested straight-line walking distance of a pickup point. This is the v0.1 pickup-only slice; drop-off matching and route-order evaluation remain v0.2 work.
 
 ## Request contract
 
@@ -30,7 +30,7 @@ flowchart LR
     Rank[Rank and limit]
     Response[Public Ride responses]
 
-    Client -->|GET /rides/search| Guard
+    Client -->|GET /v1/rides/search| Guard
     Guard --> Validator
     Validator --> Candidate
     Candidate --> Exact
@@ -38,7 +38,7 @@ flowchart LR
     Rank --> Response
 ```
 
-The fixed `/search` route is registered before `/rides/:id`, so Express never interprets `search` as a Ride ID.
+The fixed `/search` route is registered before `/v1/rides/:id`, so Express never interprets `search` as a Ride ID.
 
 ## Candidate filtering
 
@@ -72,28 +72,25 @@ Successful searches use the existing public Ride mapper and add the calculated p
 
 ```json
 {
-  "success": true,
-  "data": {
-    "results": [
-      {
-        "id": "...",
-        "driverId": "...",
-        "status": "SCHEDULED",
-        "route": { "type": "LineString", "coordinates": [] },
-        "origin": [77.59, 12.97],
-        "destination": [77.60, 12.97],
-        "routeLengthM": 1084,
-        "departureTime": "2026-11-25T08:00:00.000Z",
-        "seatsTotal": 3,
-        "seatsAvailable": 3,
-        "pricePerSeatPaise": 12000,
-        "currency": "INR",
-        "priceDisplay": "₹120.00",
-        "walkPickupM": 145.32
-      }
-    ],
-    "truncated": false
-  }
+  "results": [
+    {
+      "id": "...",
+      "driverId": "...",
+      "status": "SCHEDULED",
+      "route": { "type": "LineString", "coordinates": [] },
+      "origin": [77.59, 12.97],
+      "destination": [77.60, 12.97],
+      "routeLengthM": 1084,
+      "departureTime": "2026-11-25T08:00:00.000Z",
+      "seatsTotal": 3,
+      "seatsAvailable": 3,
+      "pricePerSeatPaise": 12000,
+      "currency": "INR",
+      "priceDisplay": "₹120.00",
+      "walkPickupM": 145.32
+    }
+  ],
+  "truncated": false
 }
 ```
 

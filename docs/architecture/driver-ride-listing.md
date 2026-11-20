@@ -1,6 +1,6 @@
 # Driver Ride listing architecture
 
-`GET /me/rides` returns only the authenticated user's own Rides. It uses keyset pagination with a deterministic descending order of `departureTime` followed by `_id`. The default page size is 10 and the maximum is 50.
+`GET /v1/me/rides` returns only the authenticated user's own Rides. It uses keyset pagination with a deterministic descending order of `departureTime` followed by `_id`. The default page size is 10 and the maximum is 50.
 
 ## Request flow
 
@@ -9,7 +9,7 @@ flowchart LR
     Client[HTTP client]
 
     subgraph API[Poolr Express API]
-        Router[GET /me/rides]
+        Router[GET /v1/me/rides]
         Guard[requireAuth]
         Validator[Strict Zod query schema]
         Controller[listOwnRidesController]
@@ -47,7 +47,7 @@ sequenceDiagram
     participant Service as listOwnRides
     participant Mongo as RideModel
 
-    Client->>Guard: GET /me/rides?limit=10&cursor=...
+    Client->>Guard: GET /v1/me/rides?limit=10&cursor=...
     Guard->>Controller: authenticated userId
     Controller->>Schema: safeParse(req.query)
     alt Query is invalid

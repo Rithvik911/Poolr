@@ -2,12 +2,17 @@
 import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import { errorHandler } from "../src/middleware/error.middleware";
 import { createLoginRateLimiter } from "../src/middleware/login-rate-limit.middleware";
+import { requestIdMiddleware } from "../src/middleware/request-id.middleware";
+import { expectApiError } from "./api-contract-assertions";
 
 // Give each test its own limiter instance so request counts
 // cannot leak between tests and produce order-dependent failures.
 function createTestApp(limit: number) {
   const app = express();
+
+  app.use(requestIdMiddleware);
 
   app.post(
     "/auth/login",
@@ -19,8 +24,10 @@ function createTestApp(limit: number) {
         success: true,
         message: "Request allowed"
       });
-    }
+    },
   );
+
+  app.use(errorHandler);
 
   return app;
 }
@@ -48,11 +55,12 @@ describe("Login rate limiting", () => {
     // two-request allowance within the configured time window.
     const blocked = await request(app).post("/auth/login");
 
-    expect(blocked.status).toBe(429);
-    expect(blocked.body).toEqual({
-      success: false,
-      message: "Too many login attempts. Please try again later."
-    });
+    expectApiError(
+      blocked,
+      429,
+      "RATE_LIMITED",
+      "Too many login attempts. Please try again later.",
+    );
   });
 
   it("includes standard rate-limit response headers", async () => {
