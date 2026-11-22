@@ -1,6 +1,6 @@
 # Poolr web contract decisions
 
-This file records the contracts observed in the current working tree on `feat/web-frontend`. It is derived from the Express route registration, controllers, Zod validators, services, response mapper, integration tests, architecture notes, and README. It deliberately overrides older planning text when the implementation and tests disagree with it.
+This file records the contracts verified against the merged backend API contract and the frontend implementation. It is derived from the Express route registration, controllers, Zod validators, services, response mapper, integration tests, architecture notes, and README. It deliberately overrides older planning text when the implementation and tests disagree with it.
 
 ## API location
 
@@ -244,7 +244,7 @@ Specific mock/future errors handled in UI: `SEATS_UNAVAILABLE`, `RIDE_NOT_BOOKAB
 
 ## Assumptions and configurable unknowns
 
-1. The active uncommitted `/v1` contract work is the intended frontend target because it is exercised by 139 passing tests and documented as the migration path. Prefix and origin remain environment-controlled for older branches.
+1. The merged `/v1` contract is the intended frontend target because it is exercised by 139 passing tests and documented as the active API. Prefix and origin remain environment-controlled for older branches.
 2. Vite proxies the configured prefix to `http://localhost:3000` during development. This avoids changing backend behavior or adding CORS. If the frontend is served from another origin without the proxy, CORS must be enabled separately.
 3. `VITE_MAP_STYLE_URL` is optional. Without it, MapLibre uses a deliberately blank local style with plotted routes and an explicit “basemap not configured” note. A deployment should provide a licensed style URL whose style metadata includes required attribution. The app does not default to public OSM raster tiles.
 4. `VITE_USE_MOCKS` defaults to `false`. Demo-only screens explain how to enable mocks rather than silently fabricating data.

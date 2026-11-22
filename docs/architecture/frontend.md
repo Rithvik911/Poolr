@@ -1,10 +1,10 @@
 # Frontend architecture
 
-The Poolr frontend lives in `frontend/` as a separate React, TypeScript, and Vite application. It is intentionally isolated from the Express package so the backend's existing dependency graph, scripts, and uncommitted Sprint 2 work remain untouched.
+The Poolr frontend lives in `web/` as a separate React, TypeScript, and Vite application. It is intentionally isolated from the Express package so the backend's dependency graph and scripts remain untouched.
 
 ## Contract boundary
 
-`frontend/src/lib/api.ts` is the only HTTP boundary. It implements the verified versioned contracts:
+`web/src/api/` contains the HTTP integration boundary. The shared transport is implemented in `web/src/api/http.ts`, while the real API adapter implements the verified versioned contracts:
 
 - `POST /v1/auth/register`
 - `POST /v1/auth/login`
