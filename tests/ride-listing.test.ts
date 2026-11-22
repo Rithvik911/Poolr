@@ -5,6 +5,7 @@ import app from "../src/app";
 import { RideModel } from "../src/models/ride.model";
 import { UserModel } from "../src/models/user.model";
 import { generateAccessToken } from "../src/utils/jwt";
+import { expectApiError } from "./api-contract-assertions";
 
 async function createDriver(email: string) {
   const driver = await UserModel.create({
@@ -43,14 +44,16 @@ async function createRide(
   });
 }
 
-describe("GET /me/rides", () => {
+describe("GET /v1/me/rides", () => {
   it("requires authentication", async () => {
-    const response = await request(app).get("/me/rides");
+    const response = await request(app).get("/v1/me/rides");
 
-    expect(response.status).toBe(401);
-    expect(response.body).toEqual({
-      message: "Authorization header missing",
-    });
+    expectApiError(
+      response,
+      401,
+      "UNAUTHENTICATED",
+      "Authorization header is required",
+    );
   });
 
   it("returns only the authenticated driver's rides as public DTOs", async () => {
@@ -63,7 +66,7 @@ describe("GET /me/rides", () => {
     await createRide(other.driver._id, "2026-12-02T10:00:00.000Z");
 
     const response = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .set("Authorization", `Bearer ${owner.accessToken}`);
 
     expect(response.status).toBe(200);
@@ -92,7 +95,7 @@ describe("GET /me/rides", () => {
     await createRide(driver._id, "2026-12-02T10:00:00.000Z", tiedHigher);
 
     const response = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
 
@@ -122,7 +125,7 @@ describe("GET /me/rides", () => {
     );
 
     const firstPage = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
 
@@ -134,7 +137,7 @@ describe("GET /me/rides", () => {
     expect(firstPage.body.pagination.nextCursor).toEqual(expect.any(String));
 
     const secondPage = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .query({ cursor: firstPage.body.pagination.nextCursor })
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -166,7 +169,7 @@ describe("GET /me/rides", () => {
     ]);
 
     const response = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .query({ limit: "2" })
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -182,7 +185,7 @@ describe("GET /me/rides", () => {
     );
 
     const response = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .query({ limit: "50" })
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -198,12 +201,12 @@ describe("GET /me/rides", () => {
       );
 
       const response = await request(app)
-        .get("/me/rides")
+        .get("/v1/me/rides")
         .query({ limit })
         .set("Authorization", `Bearer ${accessToken}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe("Invalid ride listing query");
+      expect(response.body.error.message).toBe("Invalid ride listing query");
     },
   );
 
@@ -213,12 +216,12 @@ describe("GET /me/rides", () => {
     );
 
     const response = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .query({ offset: "10" })
       .set("Authorization", `Bearer ${accessToken}`);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid ride listing query");
+    expect(response.body.error.message).toBe("Invalid ride listing query");
   });
 
   it.each([
@@ -252,15 +255,16 @@ describe("GET /me/rides", () => {
     );
 
     const response = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .query({ cursor })
       .set("Authorization", `Bearer ${accessToken}`);
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      success: false,
-      message: "Invalid ride cursor",
-    });
+    expectApiError(
+      response,
+      400,
+      "VALIDATION_ERROR",
+      "Invalid ride cursor",
+    );
   });
 
   it("returns an empty final page when the driver has no rides", async () => {
@@ -269,7 +273,7 @@ describe("GET /me/rides", () => {
     );
 
     const response = await request(app)
-      .get("/me/rides")
+      .get("/v1/me/rides")
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
 

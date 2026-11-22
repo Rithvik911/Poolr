@@ -38,8 +38,9 @@ A carpooling backend. Drivers post rides with a route, departure time and seats.
 **Build**
 - [ ] Tooling: strict TypeScript, ESLint, Prettier, Husky, commitlint, `.env.example`
 - [x] Compose with replica-set Mongo, plus a migration script for collections, indexes and validators (autoIndex off)
-- [ ] Validated config, pino with request IDs, `Clock`, `AppError` hierarchy, central error handler
-- [ ] `/health` and `/ready`
+- [x] Validated config, request IDs, typed `AppError` hierarchy, and central error handler
+- [ ] Pino structured logging and injectable `Clock`
+- [x] `/health` and Mongo-backed `/ready`
 - [ ] Auth: register (normalized email, Argon2id), login (generic error), 60-minute access token, user/driver/admin guards, `GET /me`
 - [ ] Rides:
   - [x] Create validates 2 to 500 points, no consecutive duplicate points (loops allowed), route length of at least 500 m, no antimeridian crossing, departure 5 minutes to 90 days ahead, 1 to 8 seats, price 0 to 1,000,000 integer paise
@@ -47,10 +48,10 @@ A carpooling backend. Drivers post rides with a route, departure time and seats.
   - [x] `GET /rides/:id`
   - [x] `GET /me/rides` with cursor pagination
   - [x] Pickup-only search
-- [ ] Integration tests for every endpoint (success, validation, authz); keep the S1 rollback test as a regression test
+- [x] Integration tests for every currently implemented endpoint (success, validation, authz); keep the S1 rollback test as a regression test
 
 **Acceptance**
-- [ ] Coverage at least 70%
+- [x] Coverage at least 70%
 - [ ] CI green against a replica-set Mongo
 - [ ] Fresh clone runs; README has run instructions
 - [ ] Tag `v0.1`

@@ -1,21 +1,26 @@
 import express, { type Express } from "express";
-import authRoutes from "./routes/auth.routes";
-import meRoutes from "./routes/me.routes";
-import rideRoutes from "./routes/ride.routes";
+import {
+  healthController,
+  readinessController,
+} from "./controllers/health.controller";
+import {
+  errorHandler,
+  notFoundMiddleware,
+} from "./middleware/error.middleware";
+import { requestIdMiddleware } from "./middleware/request-id.middleware";
+import v1Routes from "./routes/v1.routes";
 
 const app: Express = express();
 
+app.use(requestIdMiddleware);
 app.use(express.json());
 
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    service: "Poolr API"
-  });
-});
+app.get("/health", healthController);
+app.get("/ready", readinessController);
 
-app.use("/auth", authRoutes);
-app.use("/me", meRoutes);
-app.use("/rides", rideRoutes);
+app.use("/v1", v1Routes);
+
+app.use(notFoundMiddleware);
+app.use(errorHandler);
 
 export default app;

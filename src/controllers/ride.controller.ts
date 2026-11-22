@@ -1,7 +1,10 @@
 import mongoose from "mongoose";
-import type { Request, Response } from "express";
-import { toRideResponse } from "../utils/ride-response";
-
+import type {
+  NextFunction,
+  Request,
+  Response,
+} from "express";
+import { AppError } from "../errors/app-error";
 import {
   createRide,
   DriverRequiredError,
@@ -13,31 +16,46 @@ import {
   RideNotFoundError,
   RouteTooShortError,
 } from "../services/ride.service";
+import { toRideResponse } from "../utils/ride-response";
 import {
   createRideSchema,
   listOwnRidesQuerySchema,
 } from "../validators/ride.validator";
 
+function createValidationError(
+  message: string,
+  details?: unknown,
+): AppError {
+  return new AppError({
+    statusCode: 400,
+    code: "VALIDATION_ERROR",
+    message,
+    details,
+  });
+}
+
 export async function createRideController(
   req: Request,
   res: Response,
+  next: NextFunction,
 ): Promise<void> {
   const result = createRideSchema.safeParse(req.body);
 
   if (!result.success) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid ride data",
-      errors: result.error.flatten(),
-    });
+    next(
+      createValidationError(
+        "Invalid ride data",
+        result.error.flatten(),
+      ),
+    );
     return;
   }
 
   try {
-    // requireAuth places the authenticated user ID in res.locals.
-    const driverId = res.locals.userId;
-
-    const ride = await createRide(driverId, result.data);
+    const ride = await createRide(
+      res.locals.userId,
+      result.data,
+    );
 
     res.status(201).json({
       success: true,
@@ -46,49 +64,46 @@ export async function createRideController(
     });
   } catch (error) {
     if (error instanceof DriverRequiredError) {
-      res.status(403).json({
-        success: false,
-        message: error.message,
-      });
+      next(
+        new AppError({
+          statusCode: 403,
+          code: "FORBIDDEN",
+          message: error.message,
+        }),
+      );
       return;
     }
 
     if (
       error instanceof InvalidDepartureTimeError ||
-      error instanceof RouteTooShortError ||
-      error instanceof mongoose.Error.ValidationError
+      error instanceof RouteTooShortError
     ) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      next(createValidationError(error.message));
       return;
     }
 
-    console.error("Ride creation failed:", error);
+    if (error instanceof mongoose.Error.ValidationError) {
+      next(createValidationError("Invalid ride data"));
+      return;
+    }
 
-    res.status(500).json({
-      success: false,
-      message: "Unable to create ride",
-    });
+    next(error);
   }
 }
 
 export async function getRideController(
   req: Request,
   res: Response,
+  next: NextFunction,
 ): Promise<void> {
+  const rideId = req.params.id;
+
+  if (typeof rideId !== "string") {
+    next(createValidationError("Invalid ride ID"));
+    return;
+  }
+
   try {
-    const rideId = req.params.id;
-
-    if (typeof rideId !== "string") {
-      res.status(400).json({
-        success: false,
-        message: "Invalid ride ID",
-      });
-      return;
-    }
-
     const ride = await getRideById(rideId);
 
     res.status(200).json({
@@ -97,47 +112,47 @@ export async function getRideController(
     });
   } catch (error) {
     if (error instanceof InvalidRideIdError) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      next(createValidationError(error.message));
       return;
     }
 
     if (error instanceof RideNotFoundError) {
-      res.status(404).json({
-        success: false,
-        message: error.message,
-      });
+      next(
+        new AppError({
+          statusCode: 404,
+          code: "NOT_FOUND",
+          message: error.message,
+        }),
+      );
       return;
     }
 
-    console.error("Get ride failed:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Unable to fetch ride",
-    });
+    next(error);
   }
 }
 
 export async function listOwnRidesController(
   req: Request,
   res: Response,
+  next: NextFunction,
 ): Promise<void> {
   const result = listOwnRidesQuerySchema.safeParse(req.query);
 
   if (!result.success) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid ride listing query",
-      errors: result.error.flatten(),
-    });
+    next(
+      createValidationError(
+        "Invalid ride listing query",
+        result.error.flatten(),
+      ),
+    );
     return;
   }
 
   try {
-    const page = await listOwnRides(res.locals.userId, result.data);
+    const page = await listOwnRides(
+      res.locals.userId,
+      result.data,
+    );
 
     res.status(200).json({
       success: true,
@@ -150,18 +165,10 @@ export async function listOwnRidesController(
     });
   } catch (error) {
     if (error instanceof InvalidRideCursorError) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      next(createValidationError(error.message));
       return;
     }
 
-    console.error("List own rides failed:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Unable to fetch rides",
-    });
+    next(error);
   }
 }

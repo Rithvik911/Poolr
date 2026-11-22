@@ -1,4 +1,9 @@
-import type { Request, Response } from "express";
+import type {
+  NextFunction,
+  Request,
+  Response,
+} from "express";
+import { AppError } from "../errors/app-error";
 import {
   InvalidRideSearchWindowError,
   searchRides,
@@ -9,16 +14,20 @@ import { searchRidesQuerySchema } from "../validators/ride-search.validator";
 export async function searchRidesController(
   req: Request,
   res: Response,
+  next: NextFunction,
 ): Promise<void> {
   const validationResult =
     searchRidesQuerySchema.safeParse(req.query);
 
   if (!validationResult.success) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid ride search query",
-      errors: validationResult.error.flatten(),
-    });
+    next(
+      new AppError({
+        statusCode: 400,
+        code: "VALIDATION_ERROR",
+        message: "Invalid ride search query",
+        details: validationResult.error.flatten(),
+      }),
+    );
     return;
   }
 
@@ -29,31 +38,26 @@ export async function searchRidesController(
     );
 
     res.status(200).json({
-      success: true,
-      data: {
-        results: searchResult.results.map(
-          ({ ride, walkPickupM }) => ({
-            ...toRideResponse(ride),
-            walkPickupM,
-          }),
-        ),
-        truncated: searchResult.truncated,
-      },
+      results: searchResult.results.map(
+        ({ ride, walkPickupM }) => ({
+          ...toRideResponse(ride),
+          walkPickupM,
+        }),
+      ),
+      truncated: searchResult.truncated,
     });
   } catch (error) {
     if (error instanceof InvalidRideSearchWindowError) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      next(
+        new AppError({
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: error.message,
+        }),
+      );
       return;
     }
 
-    console.error("Ride search failed:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Unable to search rides",
-    });
+    next(error);
   }
 }
